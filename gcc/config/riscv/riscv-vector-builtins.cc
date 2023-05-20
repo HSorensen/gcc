@@ -324,6 +324,13 @@ static const rvv_type_info eew64_interpret_ops[] = {
 #include "riscv-vector-builtins-types.def"
   {NUM_VECTOR_TYPES, 0}};
 
+/* A list of bool1 interpret will be registered for intrinsic functions.  */
+static const rvv_type_info bool1_interpret_ops[] = {
+#define DEF_RVV_BOOL1_INTERPRET_OPS(TYPE, REQUIRE)                             \
+  {VECTOR_TYPE_##TYPE, REQUIRE},
+#include "riscv-vector-builtins-types.def"
+  {NUM_VECTOR_TYPES, 0}};
+
 /* A list of x2 vlmul ext will be registered for intrinsic functions.  */
 static const rvv_type_info vlmul_ext_x2_ops[] = {
 #define DEF_RVV_X2_VLMUL_EXT_OPS(TYPE, REQUIRE) {VECTOR_TYPE_##TYPE, REQUIRE},
@@ -1596,6 +1603,14 @@ static CONSTEXPR const rvv_op_info iu_v_eew64_interpret_ops
      rvv_arg_type_info (RVV_BASE_eew64_interpret), /* Return type */
      v_args /* Args */};
 
+/* A static operand information for vbool1_t func (vector_type)
+ * function registration. */
+static CONSTEXPR const rvv_op_info iu_v_bool1_interpret_ops
+  = {bool1_interpret_ops,			   /* Types */
+     OP_TYPE_v,					   /* Suffix */
+     rvv_arg_type_info (RVV_BASE_bool1_interpret), /* Return type */
+     v_args					   /* Args */};
+
 /* A static operand information for vector_type func (vector_type)
  * function registration. */
 static CONSTEXPR const rvv_op_info all_v_vlmul_ext_x2_ops
@@ -2282,6 +2297,7 @@ static CONSTEXPR const function_type_info function_types[] = {
   DOUBLE_TRUNC_SCALAR, DOUBLE_TRUNC_SIGNED, DOUBLE_TRUNC_UNSIGNED,             \
   DOUBLE_TRUNC_UNSIGNED_SCALAR, DOUBLE_TRUNC_FLOAT, FLOAT, LMUL1, WLMUL1,      \
   EEW8_INTERPRET, EEW16_INTERPRET, EEW32_INTERPRET, EEW64_INTERPRET,           \
+  BOOL1_INTERPRET,                                                             \
   X2_VLMUL_EXT, X4_VLMUL_EXT, X8_VLMUL_EXT, X16_VLMUL_EXT, X32_VLMUL_EXT,      \
   X64_VLMUL_EXT, TUPLE_SUBPART)                                                \
   {                                                                            \
@@ -2319,6 +2335,7 @@ static CONSTEXPR const function_type_info function_types[] = {
     VECTOR_TYPE_##EEW16_INTERPRET,                                             \
     VECTOR_TYPE_##EEW32_INTERPRET,                                             \
     VECTOR_TYPE_##EEW64_INTERPRET,                                             \
+    VECTOR_TYPE_##BOOL1_INTERPRET,                                             \
     VECTOR_TYPE_##X2_VLMUL_EXT,                                                \
     VECTOR_TYPE_##X4_VLMUL_EXT,                                                \
     VECTOR_TYPE_##X8_VLMUL_EXT,                                                \
@@ -2606,17 +2623,33 @@ register_vector_type (vector_type_index type)
 static bool
 required_extensions_p (enum rvv_base_type type)
 {
-  return type == RVV_BASE_eew8_index || type == RVV_BASE_eew16_index
-	 || type == RVV_BASE_eew32_index || type == RVV_BASE_eew64_index
-	 || type == RVV_BASE_float_vector
-	 || type == RVV_BASE_double_trunc_float_vector
-	 || type == RVV_BASE_double_trunc_vector
-	 || type == RVV_BASE_widen_lmul1_vector
-	 || type == RVV_BASE_eew8_interpret || type == RVV_BASE_eew16_interpret
-	 || type == RVV_BASE_eew32_interpret || type == RVV_BASE_eew64_interpret
-	 || type == RVV_BASE_vlmul_ext_x2 || type == RVV_BASE_vlmul_ext_x4
-	 || type == RVV_BASE_vlmul_ext_x8 || type == RVV_BASE_vlmul_ext_x16
-	 || type == RVV_BASE_vlmul_ext_x32 || type == RVV_BASE_vlmul_ext_x64;
+  switch (type)
+    {
+      case RVV_BASE_eew8_index:
+      case RVV_BASE_eew16_index:
+      case RVV_BASE_eew32_index:
+      case RVV_BASE_eew64_index:
+      case RVV_BASE_float_vector:
+      case RVV_BASE_double_trunc_float_vector:
+      case RVV_BASE_double_trunc_vector:
+      case RVV_BASE_widen_lmul1_vector:
+      case RVV_BASE_eew8_interpret:
+      case RVV_BASE_eew16_interpret:
+      case RVV_BASE_eew32_interpret:
+      case RVV_BASE_eew64_interpret:
+      case RVV_BASE_bool1_interpret:
+      case RVV_BASE_vlmul_ext_x2:
+      case RVV_BASE_vlmul_ext_x4:
+      case RVV_BASE_vlmul_ext_x8:
+      case RVV_BASE_vlmul_ext_x16:
+      case RVV_BASE_vlmul_ext_x32:
+      case RVV_BASE_vlmul_ext_x64:
+	return true;
+      default:
+	return false;
+    }
+
+  gcc_unreachable ();
 }
 
 static uint64_t
@@ -2965,6 +2998,10 @@ function_builder::apply_predication (const function_instance &instance,
       || instance.pred == PRED_TYPE_tumu || instance.pred == PRED_TYPE_mu)
     argument_types.quick_insert (0, mask_type);
 
+  /* check if rounding mode parameter need  */
+  if (instance.base->has_rounding_mode_operand_p ())
+    argument_types.quick_push (unsigned_type_node);
+
   /* check if vl parameter need  */
   if (instance.base->apply_vl_p ())
     argument_types.quick_push (size_type_node);
@@ -3264,7 +3301,17 @@ function_expander::use_exact_insn (insn_code icode)
     }
 
   for (int argno = arg_offset; argno < call_expr_nargs (exp); argno++)
-    add_input_operand (argno);
+    {
+      if (base->has_rounding_mode_operand_p ()
+	  && argno == call_expr_nargs (exp) - 2)
+	{
+	  /* Since the rounding mode argument position is not consistent with
+	     the instruction pattern, we need to skip rounding mode argument
+	     here.  */
+	  continue;
+	}
+      add_input_operand (argno);
+    }
 
   if (base->apply_tail_policy_p ())
     add_input_operand (Pmode, get_tail_policy_for_pred (pred));
@@ -3273,6 +3320,16 @@ function_expander::use_exact_insn (insn_code icode)
 
   if (base->apply_vl_p ())
     add_input_operand (Pmode, get_avl_type_rtx (avl_type::NONVLMAX));
+
+  if (base->has_rounding_mode_operand_p ())
+    add_input_operand (call_expr_nargs (exp) - 2);
+
+  /* TODO: Currently, we don't support intrinsic that is modeling rounding mode.
+     We add default rounding mode for the intrinsics that didn't model rounding
+     mode yet.  */
+  if (opno != insn_data[icode].n_generator_args)
+    add_input_operand (Pmode, const0_rtx);
+
   return generate_insn (icode);
 }
 
@@ -3438,6 +3495,13 @@ function_expander::use_ternop_insn (bool vd_accum_p, insn_code icode)
   add_input_operand (Pmode, get_tail_policy_for_pred (pred));
   add_input_operand (Pmode, get_mask_policy_for_pred (pred));
   add_input_operand (Pmode, get_avl_type_rtx (avl_type::NONVLMAX));
+
+  /* TODO: Currently, we don't support intrinsic that is modeling rounding mode.
+     We add default rounding mode for the intrinsics that didn't model rounding
+     mode yet.  */
+  if (opno != insn_data[icode].n_generator_args)
+    add_input_operand (Pmode, const0_rtx);
+
   return generate_insn (icode);
 }
 
@@ -3460,6 +3524,13 @@ function_expander::use_widen_ternop_insn (insn_code icode)
   add_input_operand (Pmode, get_tail_policy_for_pred (pred));
   add_input_operand (Pmode, get_mask_policy_for_pred (pred));
   add_input_operand (Pmode, get_avl_type_rtx (avl_type::NONVLMAX));
+
+  /* TODO: Currently, we don't support intrinsic that is modeling rounding mode.
+     We add default rounding mode for the intrinsics that didn't model rounding
+     mode yet.  */
+  if (opno != insn_data[icode].n_generator_args)
+    add_input_operand (Pmode, const0_rtx);
+
   return generate_insn (icode);
 }
 
@@ -3704,6 +3775,19 @@ verify_type_context (location_t loc, type_context_kind context, const_tree type,
   gcc_unreachable ();
 }
 
+/* Register the vxrm enum.  */
+static void
+register_vxrm ()
+{
+  auto_vec<string_int_pair, 4> values;
+#define DEF_RVV_VXRM_ENUM(NAME, VALUE)                                          \
+  values.quick_push (string_int_pair ("VXRM_" #NAME, VALUE));
+#include "riscv-vector-builtins.def"
+#undef DEF_RVV_VXRM_ENUM
+
+  lang_hooks.types.simulate_enum_decl (input_location, "RVV_VXRM", &values);
+}
+
 /* Implement #pragma riscv intrinsic vector.  */
 void
 handle_pragma_vector ()
@@ -3718,6 +3802,9 @@ handle_pragma_vector ()
   /* Define the vector and tuple types.  */
   for (unsigned int type_i = 0; type_i < NUM_VECTOR_TYPES; ++type_i)
     register_vector_type ((enum vector_type_index) type_i);
+
+  /* Define the enums.  */
+  register_vxrm ();
 
   /* Define the functions.  */
   function_table = new hash_table<registered_function_hasher> (1023);

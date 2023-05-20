@@ -167,8 +167,10 @@ bool legitimize_move (rtx, rtx, machine_mode);
 void emit_vlmax_vsetvl (machine_mode, rtx);
 void emit_hard_vlmax_vsetvl (machine_mode, rtx);
 void emit_vlmax_op (unsigned, rtx, rtx, machine_mode);
-void emit_vlmax_op (unsigned, rtx, rtx, rtx, machine_mode);
-void emit_nonvlmax_op (unsigned, rtx, rtx, rtx, machine_mode);
+void emit_vlmax_reg_op (unsigned, rtx, rtx, rtx, machine_mode);
+void emit_len_op (unsigned, rtx, rtx, rtx, machine_mode);
+void emit_len_binop (unsigned, rtx, rtx, rtx, rtx, machine_mode,
+		     machine_mode = VOIDmode);
 enum vlmul_type get_vlmul (machine_mode);
 unsigned int get_ratio (machine_mode);
 unsigned int get_nf (machine_mode);
@@ -219,6 +221,26 @@ rtx gen_avl_for_scalar_move (rtx);
 void expand_tuple_move (machine_mode, rtx *);
 machine_mode preferred_simd_mode (scalar_mode);
 opt_machine_mode get_mask_mode (machine_mode);
+void expand_vec_series (rtx, rtx, rtx);
+void expand_vec_init (rtx, rtx);
+/* Rounding mode bitfield for fixed point VXRM.  */
+enum vxrm_field_enum
+{
+  VXRM_RNU,
+  VXRM_RNE,
+  VXRM_RDN,
+  VXRM_ROD
+};
+/* Rounding mode bitfield for floating point FRM.  */
+enum frm_field_enum
+{
+  FRM_RNE = 0b000,
+  FRM_RTZ = 0b001,
+  FRM_RDN = 0b010,
+  FRM_RUP = 0b011,
+  FRM_RMM = 0b100,
+  DYN = 0b111
+};
 }
 
 /* We classify builtin types into two classes:

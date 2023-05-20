@@ -1887,7 +1887,7 @@ type_natural_mode (const_tree type, const CUMULATIVE_ARGS *cum,
 {
   machine_mode mode = TYPE_MODE (type);
 
-  if (TREE_CODE (type) == VECTOR_TYPE && !VECTOR_MODE_P (mode))
+  if (VECTOR_TYPE_P (type) && !VECTOR_MODE_P (mode))
     {
       HOST_WIDE_INT size = int_size_in_bytes (type);
       if ((size == 8 || size == 16 || size == 32 || size == 64)
@@ -1904,7 +1904,7 @@ type_natural_mode (const_tree type, const CUMULATIVE_ARGS *cum,
 	  if (DECIMAL_FLOAT_MODE_P (innermode))
 	    return mode;
 
-	  if (TREE_CODE (TREE_TYPE (type)) == REAL_TYPE)
+	  if (SCALAR_FLOAT_TYPE_P (TREE_TYPE (type)))
 	    mode = MIN_MODE_VECTOR_FLOAT;
 	  else
 	    mode = MIN_MODE_VECTOR_INT;
@@ -3412,7 +3412,7 @@ ix86_function_arg (cumulative_args_t cum_v, const function_arg_info &arg)
 
   /* To simplify the code below, represent vector types with a vector mode
      even if MMX/SSE are not active.  */
-  if (arg.type && TREE_CODE (arg.type) == VECTOR_TYPE)
+  if (arg.type && VECTOR_TYPE_P (arg.type))
     mode = type_natural_mode (arg.type, cum, false);
 
   if (TARGET_64BIT)
@@ -17470,9 +17470,7 @@ ix86_data_alignment (tree type, unsigned int align, bool opt)
 	   || TYPE_MODE (type) == TCmode) && align < 128)
 	return 128;
     }
-  else if ((TREE_CODE (type) == RECORD_TYPE
-	    || TREE_CODE (type) == UNION_TYPE
-	    || TREE_CODE (type) == QUAL_UNION_TYPE)
+  else if (RECORD_OR_UNION_TYPE_P (type)
 	   && TYPE_FIELDS (type))
     {
       if (DECL_MODE (TYPE_FIELDS (type)) == DFmode && align < 64)
@@ -17480,7 +17478,7 @@ ix86_data_alignment (tree type, unsigned int align, bool opt)
       if (ALIGN_MODE_128 (DECL_MODE (TYPE_FIELDS (type))) && align < 128)
 	return 128;
     }
-  else if (TREE_CODE (type) == REAL_TYPE || TREE_CODE (type) == VECTOR_TYPE
+  else if (SCALAR_FLOAT_TYPE_P (type) || VECTOR_TYPE_P (type)
 	   || TREE_CODE (type) == INTEGER_TYPE)
     {
       if (TYPE_MODE (type) == DFmode && align < 64)
@@ -17596,9 +17594,7 @@ ix86_local_alignment (tree exp, machine_mode mode,
 	   || TYPE_MODE (type) == TCmode) && align < 128)
 	return 128;
     }
-  else if ((TREE_CODE (type) == RECORD_TYPE
-	    || TREE_CODE (type) == UNION_TYPE
-	    || TREE_CODE (type) == QUAL_UNION_TYPE)
+  else if (RECORD_OR_UNION_TYPE_P (type)
 	   && TYPE_FIELDS (type))
     {
       if (DECL_MODE (TYPE_FIELDS (type)) == DFmode && align < 64)
@@ -17606,7 +17602,7 @@ ix86_local_alignment (tree exp, machine_mode mode,
       if (ALIGN_MODE_128 (DECL_MODE (TYPE_FIELDS (type))) && align < 128)
 	return 128;
     }
-  else if (TREE_CODE (type) == REAL_TYPE || TREE_CODE (type) == VECTOR_TYPE
+  else if (SCALAR_FLOAT_TYPE_P (type) || VECTOR_TYPE_P (type)
 	   || TREE_CODE (type) == INTEGER_TYPE)
     {
 
@@ -20439,7 +20435,8 @@ ix86_widen_mult_cost (const struct processor_costs *cost,
       basic_cost = cost->mulss * 2 + cost->sse_op * 4;
       break;
     default:
-      gcc_unreachable();
+      /* Not implemented.  */
+      return 100;
     }
   return ix86_vec_cost (mode, basic_cost + extra_cost);
 }
@@ -20462,36 +20459,60 @@ ix86_multiplication_cost (const struct processor_costs *cost,
     return  ix86_vec_cost (mode,
 			   inner_mode == DFmode ? cost->mulsd : cost->mulss);
   else if (GET_MODE_CLASS (mode) == MODE_VECTOR_INT)
-    {
-      /* vpmullq is used in this case. No emulation is needed.  */
-      if (TARGET_AVX512DQ)
-	return ix86_vec_cost (mode, cost->mulss);
+    switch (mode)
+      {
+      case V4QImode:
+      case V8QImode:
+	/* Partial V*QImode is emulated with 4-5 insns.  */
+	if ((TARGET_AVX512BW && TARGET_AVX512VL) || TARGET_XOP)
+	  return ix86_vec_cost (mode, cost->mulss + cost->sse_op * 3);
+	else
+	  return ix86_vec_cost (mode, cost->mulss + cost->sse_op * 4);
 
-      /* V*QImode is emulated with 7-13 insns.  */
-      if (mode == V16QImode || mode == V32QImode)
-	{
-	  int extra = 11;
-	  if (TARGET_XOP && mode == V16QImode)
-	    extra = 5;
-	  else if (TARGET_SSSE3)
-	    extra = 6;
-	  return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * extra);
-	}
-      /* V*DImode is emulated with 5-8 insns.  */
-      else if (mode == V2DImode || mode == V4DImode)
-	{
-	  if (TARGET_XOP && mode == V2DImode)
-	    return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 3);
-	  else
-	    return ix86_vec_cost (mode, cost->mulss * 3 + cost->sse_op * 5);
-	}
-      /* Without sse4.1, we don't have PMULLD; it's emulated with 7
-	 insns, including two PMULUDQ.  */
-      else if (mode == V4SImode && !(TARGET_SSE4_1 || TARGET_AVX))
-	return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 5);
-      else
+      case V16QImode:
+	/* V*QImode is emulated with 4-11 insns.  */
+	if (TARGET_AVX512BW && TARGET_AVX512VL)
+	  return ix86_vec_cost (mode, cost->mulss + cost->sse_op * 3);
+	else if (TARGET_XOP)
+	  return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 5);
+	/* FALLTHRU */
+      case V32QImode:
+	if (TARGET_AVX512BW && mode == V32QImode)
+	  return ix86_vec_cost (mode, cost->mulss + cost->sse_op * 3);
+	else
+	  return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 7);
+
+      case V64QImode:
+	return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 9);
+
+      case V4SImode:
+	/* pmulld is used in this case. No emulation is needed.  */
+	if (TARGET_SSE4_1)
+	  goto do_native;
+	/* V4SImode is emulated with 7 insns.  */
+	else
+	  return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 5);
+
+      case V2DImode:
+      case V4DImode:
+	/* vpmullq is used in this case. No emulation is needed.  */
+	if (TARGET_AVX512DQ && TARGET_AVX512VL)
+	  goto do_native;
+	/* V*DImode is emulated with 6-8 insns.  */
+	else if (TARGET_XOP && mode == V2DImode)
+	  return ix86_vec_cost (mode, cost->mulss * 2 + cost->sse_op * 4);
+	/* FALLTHRU */
+      case V8DImode:
+	/* vpmullq is used in this case. No emulation is needed.  */
+	if (TARGET_AVX512DQ && mode == V8DImode)
+	  goto do_native;
+	else
+	  return ix86_vec_cost (mode, cost->mulss * 3 + cost->sse_op * 5);
+
+      default:
+      do_native:
 	return ix86_vec_cost (mode, cost->mulss);
-    }
+      }
   else
     return (cost->mult_init[MODE_INDEX (mode)] + cost->mult_bit * 7);
 }
@@ -21836,8 +21857,12 @@ x86_function_profiler (FILE *file, int labelno ATTRIBUTE_UNUSED)
 	      break;
 	    case CM_SMALL_PIC:
 	    case CM_MEDIUM_PIC:
-	      fprintf (file, "1:\tcall\t*%s@GOTPCREL(%%rip)\n", mcount_name);
-	      break;
+	      if (!ix86_direct_extern_access)
+		{
+		  fprintf (file, "1:\tcall\t*%s@GOTPCREL(%%rip)\n", mcount_name);
+		  break;
+		}
+	      /* fall through */
 	    default:
 	      x86_print_call_or_nop (file, mcount_name);
 	      break;
@@ -23831,7 +23856,7 @@ ix86_simd_clone_compute_vecsize_and_simdlen (struct cgraph_node *node,
 	 for 64-bit code), accept that SIMDLEN, otherwise warn and don't
 	 emit corresponding clone.  */
       tree ctype = ret_type;
-      if (TREE_CODE (ret_type) == VOID_TYPE)
+      if (VOID_TYPE_P (ret_type))
 	ctype = base_type;
       int cnt = GET_MODE_BITSIZE (TYPE_MODE (ctype)) * clonei->simdlen;
       if (SCALAR_INT_MODE_P (TYPE_MODE (ctype)))

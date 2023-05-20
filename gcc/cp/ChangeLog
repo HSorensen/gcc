@@ -1,3 +1,140 @@
+2023-05-19  Andrew Pinski  <apinski@marvell.com>
+
+	PR driver/33980
+	* lang-specs.h ("@c++-header"): Add %w after
+	the --output-pch.
+	("@c++-system-header"): Likewise.
+	("@c++-user-header"): Likewise.
+
+2023-05-19  Patrick Palka  <ppalka@redhat.com>
+
+	* constraint.cc (normalize_concept_check): Avoid having to do
+	two norm_cache lookups.  Remove unnecessary early exit for an
+	ill-formed concept definition.
+
+2023-05-19  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/97340
+	* pt.cc (lookup_and_finish_template_variable): Don't call
+	convert_from_reference.
+	(tsubst_copy_and_build) <case TEMPLATE_ID_EXPR>: Call
+	convert_from_reference on the result of
+	lookup_and_finish_template_variable.
+
+2023-05-18  Bernhard Reutner-Fischer  <aldot@gcc.gnu.org>
+
+	* call.cc (promoted_arithmetic_type_p): Use _P defines from tree.h.
+	(build_conditional_expr): Ditto.
+	(convert_like_internal): Ditto.
+	(convert_arg_to_ellipsis): Ditto.
+	(build_over_call): Ditto.
+	(compare_ics): Ditto.
+	* class.cc (is_empty_base_ref): Ditto.
+	* coroutines.cc (rewrite_param_uses): Ditto.
+	* cp-tree.h (DECL_DISCRIMINATOR_P): Ditto.
+	(ARITHMETIC_TYPE_P): Ditto.
+	* cvt.cc (ocp_convert): Ditto.
+	* cxx-pretty-print.cc (pp_cxx_template_argument_list): Ditto.
+	* decl.cc (layout_var_decl): Ditto.
+	(get_tuple_size): Ditto.
+	* error.cc (dump_simple_decl): Ditto.
+	* lambda.cc (start_lambda_scope): Ditto.
+	* mangle.cc (write_template_arg): Ditto.
+	* method.cc (spaceship_comp_cat): Ditto.
+	* module.cc (node_template_info): Ditto.
+	(trees_out::start): Ditto.
+	(trees_out::decl_node): Ditto.
+	(trees_in::read_var_def): Ditto.
+	(set_instantiating_module): Ditto.
+	* name-lookup.cc (maybe_record_mergeable_decl): Ditto.
+	(consider_decl): Ditto.
+	(maybe_add_fuzzy_decl): Ditto.
+	* pt.cc (convert_nontype_argument): Ditto.
+	* semantics.cc (handle_omp_array_sections_1): Ditto.
+	(finish_omp_clauses): Ditto.
+	(finish_omp_target_clauses_r): Ditto.
+	(is_this_parameter): Ditto.
+	* tree.cc (build_cplus_array_type): Ditto.
+	(is_this_expression): Ditto.
+	* typeck.cc (do_warn_enum_conversions): Ditto.
+	* typeck2.cc (store_init_value): Ditto.
+	(check_narrowing): Ditto.
+
+2023-05-17  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/109868
+	* init.cc (build_zero_init_1): Don't initialize zero-width bitfields.
+	For unions only initialize the first FIELD_DECL.
+
+2023-05-16  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/109774
+	* typeck.cc (check_return_expr): In a template, return only after
+	suppressing -Wdangling-reference.
+
+2023-05-16  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/109871
+	* call.cc (add_list_candidates): Check for invalid designated
+	initialization sooner and even for types that have a list
+	constructor.
+
+2023-05-11  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/109745
+	* typeck2.cc (poison_mutable_constructors): Define.
+	(store_init_value): Use it instead of setting
+	CONSTRUCTOR_MUTABLE_POISON directly.
+
+2023-05-11  Patrick Palka  <ppalka@redhat.com>
+	    Jonathan Wakely  <jwakely@redhat.com>
+
+	PR c++/83258
+	PR c++/80488
+	PR c++/97700
+	* pt.cc (convert_nontype_argument_function): Remove linkage
+	requirement for C++17 and later.
+	(invalid_tparm_referent_p) <case ADDR_EXPR>: Restrict
+	DECL_ARTIFICIAL rejection test to VAR_DECL.
+
+2023-05-10  Marek Polacek  <polacek@redhat.com>
+
+	PR c++/109680
+	* method.cc (build_trait_object): New.
+	(assignable_expr): Use it.
+	(ref_xes_from_temporary): Likewise.
+	(is_convertible_helper): Likewise.  Check FUNC_OR_METHOD_TYPE_P.
+
+2023-05-10  Jason Merrill  <jason@redhat.com>
+
+	* call.cc (convert_like_internal): Share ck_ref_bind handling
+	between all bad conversions.
+
+2023-05-10  Jason Merrill  <jason@redhat.com>
+
+	DR 2543
+	* constexpr.cc (cxx_eval_outermost_constant_expr): Preserve
+	TARGET_EXPR flags.
+	(potential_constant_expression_1): Check TARGET_EXPR_ELIDING_P.
+	* typeck2.cc (store_init_value): Diagnose constinit sooner.
+
+2023-05-10  Jason Merrill  <jason@redhat.com>
+
+	* constexpr.cc (cxx_eval_outermost_constant_expr): Always check
+	for address of immediate fn.
+	(maybe_constant_init_1): Evaluate PTRMEM_CST.
+
+2023-05-10  Jakub Jelinek  <jakub@redhat.com>
+
+	PR c++/109756
+	* parser.cc (cp_parser_std_attribute): For unknown attributes with
+	arguments set TREE_VALUE (attribute) to error_mark_node after skipping
+	the balanced tokens.
+	(cp_parser_std_attribute_list): If ... is used after attribute without
+	arguments, diagnose it and return error_mark_node.  If
+	TREE_VALUE (attribute) is error_mark_node, don't call
+	make_pack_expansion nor return early error_mark_node.
+
 2023-05-09  Patrick Palka  <ppalka@redhat.com>
 
 	PR c++/109752

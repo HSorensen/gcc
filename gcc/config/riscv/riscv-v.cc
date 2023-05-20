@@ -50,10 +50,23 @@ using namespace riscv_vector;
 
 namespace riscv_vector {
 
+/* Return true if vlmax is constant value and can be used in vsetivl.  */
+static bool
+const_vlmax_p (machine_mode mode)
+{
+  poly_uint64 nuints = GET_MODE_NUNITS (mode);
+
+  return nuints.is_constant ()
+    /* The vsetivli can only hold register 0~31.  */
+    ? (IN_RANGE (nuints.to_constant (), 0, 31))
+    /* Only allowed in VLS-VLMAX mode.  */
+    : false;
+}
+
 template <int MAX_OPERANDS> class insn_expander
 {
 public:
-  insn_expander () : m_opno (0) {}
+  insn_expander () : m_opno (0), has_dest(false) {}
   void add_output_operand (rtx x, machine_mode mode)
   {
     create_output_operand (&m_ops[m_opno++], x, mode);
@@ -84,6 +97,48 @@ public:
     add_input_operand (gen_int_mode (type, Pmode), Pmode);
   }
 
+  void set_dest_and_mask (rtx mask, rtx dest, machine_mode mask_mode)
+  {
+    dest_mode = GET_MODE (dest);
+    has_dest = true;
+
+    add_output_operand (dest, dest_mode);
+
+    if (mask)
+      add_input_operand (mask, GET_MODE (mask));
+    else
+      add_all_one_mask_operand (mask_mode);
+
+    add_vundef_operand (dest_mode);
+  }
+
+  void set_len_and_policy (rtx len, bool force_vlmax = false)
+    {
+      bool vlmax_p = force_vlmax || !len;
+      gcc_assert (has_dest);
+
+      if (vlmax_p && const_vlmax_p (dest_mode))
+	{
+	  /* Optimize VLS-VLMAX code gen, we can use vsetivli instead of the
+	     vsetvli to obtain the value of vlmax.  */
+	  poly_uint64 nunits = GET_MODE_NUNITS (dest_mode);
+	  len = gen_int_mode (nunits, Pmode);
+	  vlmax_p = false; /* It has became NONVLMAX now.  */
+	}
+      else if (!len)
+	{
+	  len = gen_reg_rtx (Pmode);
+	  emit_vlmax_vsetvl (dest_mode, len);
+	}
+
+      add_input_operand (len, Pmode);
+
+      if (GET_MODE_CLASS (dest_mode) != MODE_VECTOR_BOOL)
+	add_policy_operand (get_prefer_tail_policy (), get_prefer_mask_policy ());
+
+      add_avl_type_operand (vlmax_p ? avl_type::VLMAX : avl_type::NONVLMAX);
+    }
+
   void expand (enum insn_code icode, bool temporary_volatile_p = false)
   {
     if (temporary_volatile_p)
@@ -97,6 +152,8 @@ public:
 
 private:
   int m_opno;
+  bool has_dest;
+  machine_mode dest_mode;
   expand_operand m_ops[MAX_OPERANDS];
 };
 
@@ -192,60 +249,168 @@ autovec_use_vlmax_p (void)
 /* Emit an RVV unmask && vl mov from SRC to DEST.  */
 static void
 emit_pred_op (unsigned icode, rtx mask, rtx dest, rtx src, rtx len,
-	      machine_mode mask_mode, bool vlmax_p)
+	      machine_mode mask_mode, bool force_vlmax = false)
 {
   insn_expander<8> e;
-  machine_mode mode = GET_MODE (dest);
-
-  e.add_output_operand (dest, mode);
-
-  if (mask)
-    e.add_input_operand (mask, GET_MODE (mask));
-  else
-    e.add_all_one_mask_operand (mask_mode);
-
-  e.add_vundef_operand (mode);
+  e.set_dest_and_mask (mask, dest, mask_mode);
 
   e.add_input_operand (src, GET_MODE (src));
 
-  if (len)
-    e.add_input_operand (len, Pmode);
-  else
-    {
-      rtx vlmax = gen_reg_rtx (Pmode);
-      emit_vlmax_vsetvl (mode, vlmax);
-      e.add_input_operand (vlmax, Pmode);
-    }
-
-  if (GET_MODE_CLASS (mode) != MODE_VECTOR_BOOL)
-    e.add_policy_operand (get_prefer_tail_policy (), get_prefer_mask_policy ());
-
-  if (vlmax_p)
-    e.add_avl_type_operand (avl_type::VLMAX);
-  else
-    e.add_avl_type_operand (avl_type::NONVLMAX);
+  e.set_len_and_policy (len, force_vlmax);
 
   e.expand ((enum insn_code) icode, MEM_P (dest) || MEM_P (src));
 }
 
+/* Emit an RVV binop.  If one of SRC1 and SRC2 is a scalar operand, its mode is
+   specified using SCALAR_MODE.  */
+static void
+emit_pred_binop (unsigned icode, rtx mask, rtx dest, rtx src1, rtx src2,
+		 rtx len, machine_mode mask_mode,
+		 machine_mode scalar_mode = VOIDmode)
+{
+  insn_expander<9> e;
+  e.set_dest_and_mask (mask, dest, mask_mode);
+
+  gcc_assert (VECTOR_MODE_P (GET_MODE (src1))
+	      || VECTOR_MODE_P (GET_MODE (src2)));
+
+  if (VECTOR_MODE_P (GET_MODE (src1)))
+    e.add_input_operand (src1, GET_MODE (src1));
+  else
+    e.add_input_operand (src1, scalar_mode);
+
+  if (VECTOR_MODE_P (GET_MODE (src2)))
+    e.add_input_operand (src2, GET_MODE (src2));
+  else
+    e.add_input_operand (src2, scalar_mode);
+
+  e.set_len_and_policy (len);
+
+  e.expand ((enum insn_code) icode, MEM_P (dest) || MEM_P (src1) || MEM_P (src2));
+}
+
+/* The RISC-V vsetvli pass uses "known vlmax" operations for optimization.
+   Whether or not an instruction actually is a vlmax operation is not
+   recognizable from the length operand alone but the avl_type operand
+   is used instead.  In general, there are two cases:
+
+    - Emit a vlmax operation by passing a NULL length.  Here we emit
+      a vsetvli with vlmax configuration and set the avl_type to VLMAX.
+    - Emit an operation that uses the existing (last-set) length and
+      set the avl_type to NONVLMAX.
+
+    Sometimes we also need to set the VLMAX avl_type to an operation that
+    already uses a given length register.  This can happen during or after
+    register allocation when we are not allowed to create a new register.
+    For that case we also allow to set the avl_type to VLMAX.
+*/
+
+/* This function emits a VLMAX vsetvli followed by the actual operation.  */
 void
 emit_vlmax_op (unsigned icode, rtx dest, rtx src, machine_mode mask_mode)
 {
-  emit_pred_op (icode, NULL_RTX, dest, src, NULL_RTX, mask_mode, true);
+  emit_pred_op (icode, NULL_RTX, dest, src, NULL_RTX, mask_mode);
+}
+
+/* This function emits an operation with a given LEN that is determined
+   by a previously emitted VLMAX vsetvli.  */
+void
+emit_len_op (unsigned icode, rtx dest, rtx src, rtx len,
+	     machine_mode mask_mode)
+{
+  emit_pred_op (icode, NULL_RTX, dest, src, len, mask_mode);
+}
+
+/* This function emits an operation with a given LEN that is known to be
+   a preceding VLMAX.  It also sets the VLMAX flag which allows further
+   optimization in the vsetvli pass.  */
+void
+emit_vlmax_reg_op (unsigned icode, rtx dest, rtx src, rtx len,
+		   machine_mode mask_mode)
+{
+  emit_pred_op (icode, NULL_RTX, dest, src, len, mask_mode,
+		/* Force VLMAX */ true);
 }
 
 void
-emit_vlmax_op (unsigned icode, rtx dest, rtx src, rtx len,
-	       machine_mode mask_mode)
+emit_len_binop (unsigned icode, rtx dest, rtx src1, rtx src2, rtx len,
+		machine_mode mask_mode, machine_mode scalar_mode)
 {
-  emit_pred_op (icode, NULL_RTX, dest, src, len, mask_mode, true);
+  emit_pred_binop (icode, NULL_RTX, dest, src1, src2, len,
+		   mask_mode, scalar_mode);
 }
 
-void
-emit_nonvlmax_op (unsigned icode, rtx dest, rtx src, rtx len,
-		  machine_mode mask_mode)
+/* Emit vid.v instruction.  */
+
+static void
+emit_index_op (rtx dest, machine_mode mask_mode)
 {
-  emit_pred_op (icode, NULL_RTX, dest, src, len, mask_mode, false);
+  insn_expander<7> e;
+  e.set_dest_and_mask (NULL, dest, mask_mode);
+
+  e.set_len_and_policy (NULL, true);
+
+  e.expand (code_for_pred_series (GET_MODE (dest)), false);
+}
+
+/* Expand series const vector.  */
+
+void
+expand_vec_series (rtx dest, rtx base, rtx step)
+{
+  machine_mode mode = GET_MODE (dest);
+  machine_mode inner_mode = GET_MODE_INNER (mode);
+  machine_mode mask_mode;
+  gcc_assert (get_mask_mode (mode).exists (&mask_mode));
+
+  /* VECT_IV = BASE + I * STEP.  */
+
+  /* Step 1: Generate I = { 0, 1, 2, ... } by vid.v.  */
+  rtx vid = gen_reg_rtx (mode);
+  emit_index_op (vid, mask_mode);
+
+  /* Step 2: Generate I * STEP.
+     - STEP is 1, we don't emit any instructions.
+     - STEP is power of 2, we use vsll.vi/vsll.vx.
+     - STEP is non-power of 2, we use vmul.vx.  */
+  rtx step_adj;
+  if (rtx_equal_p (step, const1_rtx))
+    step_adj = vid;
+  else
+    {
+      step_adj = gen_reg_rtx (mode);
+      if (CONST_INT_P (step) && pow2p_hwi (INTVAL (step)))
+	{
+	  /* Emit logical left shift operation.  */
+	  int shift = exact_log2 (INTVAL (step));
+	  rtx shift_amount = gen_int_mode (shift, Pmode);
+	  insn_code icode = code_for_pred_scalar (ASHIFT, mode);
+	  emit_len_binop (icode, step_adj, vid, shift_amount,
+			  NULL, mask_mode, Pmode);
+	}
+      else
+	{
+	  insn_code icode = code_for_pred_scalar (MULT, mode);
+	  emit_len_binop (icode, step_adj, vid, step,
+			  NULL, mask_mode, inner_mode);
+	}
+    }
+
+  /* Step 3: Generate BASE + I * STEP.
+     - BASE is 0, use result of vid.
+     - BASE is not 0, we use vadd.vx/vadd.vi.  */
+  if (rtx_equal_p (base, const0_rtx))
+    {
+      emit_move_insn (dest, step_adj);
+    }
+  else
+    {
+      rtx result = gen_reg_rtx (mode);
+      insn_code icode = code_for_pred_scalar (PLUS, mode);
+      emit_len_binop (icode, result, step_adj, base,
+			   NULL, mask_mode, inner_mode);
+      emit_move_insn (dest, result);
+    }
 }
 
 static void
@@ -280,12 +445,19 @@ expand_const_vector (rtx target, rtx src, machine_mode mask_mode)
       return;
     }
 
+  /* Support scalable const series vector.  */
+  rtx base, step;
+  if (const_vec_series_p (src, &base, &step))
+    {
+      emit_insn (gen_vec_series (mode, target, base, step));
+      return;
+    }
+
   /* TODO: We only support const duplicate vector for now. More cases
      will be supported when we support auto-vectorization:
 
-       1. series vector.
-       2. multiple elts duplicate vector.
-       3. multiple patterns with multiple elts.  */
+       1. multiple elts duplicate vector.
+       2. multiple patterns with multiple elts.  */
 }
 
 /* Expand a pre-RA RVV data move from SRC to DEST.
@@ -607,8 +779,8 @@ sew64_scalar_helper (rtx *operands, rtx *scalar_op, rtx vl,
     *scalar_op = force_reg (scalar_mode, *scalar_op);
 
   rtx tmp = gen_reg_rtx (vector_mode);
-  riscv_vector::emit_nonvlmax_op (code_for_pred_broadcast (vector_mode), tmp,
-				  *scalar_op, vl, mask_mode);
+  riscv_vector::emit_len_op (code_for_pred_broadcast (vector_mode), tmp,
+			     *scalar_op, vl, mask_mode);
   emit_vector_func (operands, tmp);
 
   return true;
@@ -914,7 +1086,7 @@ expand_tuple_move (machine_mode mask_mode, rtx *ops)
 	      rtx mem = gen_rtx_MEM (subpart_mode, ops[3]);
 
 	      if (fractional_p)
-		emit_vlmax_op (code_for_pred_mov (subpart_mode), subreg, mem,
+		emit_vlmax_reg_op (code_for_pred_mov (subpart_mode), subreg, mem,
 			       ops[4], mask_mode);
 	      else
 		emit_move_insn (subreg, mem);
@@ -936,7 +1108,7 @@ expand_tuple_move (machine_mode mask_mode, rtx *ops)
 	      rtx mem = gen_rtx_MEM (subpart_mode, ops[3]);
 
 	      if (fractional_p)
-		emit_vlmax_op (code_for_pred_mov (subpart_mode), mem, subreg,
+		emit_vlmax_reg_op (code_for_pred_mov (subpart_mode), mem, subreg,
 			       ops[4], mask_mode);
 	      else
 		emit_move_insn (mem, subreg);
@@ -977,6 +1149,133 @@ preferred_simd_mode (scalar_mode mode)
   /* TODO: We will support minimum length VLS auto-vectorization in
      the future.  */
   return word_mode;
+}
+
+class rvv_builder : public rtx_vector_builder
+{
+public:
+  rvv_builder () : rtx_vector_builder () {}
+  rvv_builder (machine_mode mode, unsigned int npatterns,
+	       unsigned int nelts_per_pattern)
+    : rtx_vector_builder (mode, npatterns, nelts_per_pattern)
+  {
+    m_inner_mode = GET_MODE_INNER (mode);
+    m_inner_size = GET_MODE_BITSIZE (m_inner_mode).to_constant ();
+  }
+
+  bool can_duplicate_repeating_sequence_p ();
+  rtx get_merged_repeating_sequence ();
+
+  machine_mode new_mode () const { return m_new_mode; }
+
+private:
+  machine_mode m_inner_mode;
+  machine_mode m_new_mode;
+  scalar_int_mode m_new_inner_mode;
+  unsigned int m_inner_size;
+};
+
+/* Return true if the vector duplicated by a super element which is the fusion
+   of consecutive elements.
+
+     v = { a, b, a, b } super element = ab, v = { ab, ab }  */
+bool
+rvv_builder::can_duplicate_repeating_sequence_p ()
+{
+  poly_uint64 new_size = exact_div (full_nelts (), npatterns ());
+  unsigned int new_inner_size = m_inner_size * npatterns ();
+  if (!int_mode_for_size (new_inner_size, 0).exists (&m_new_inner_mode)
+      || GET_MODE_SIZE (m_new_inner_mode) > UNITS_PER_WORD
+      || !get_vector_mode (m_new_inner_mode, new_size).exists (&m_new_mode))
+    return false;
+  return repeating_sequence_p (0, full_nelts ().to_constant (), npatterns ());
+}
+
+/* Merge the repeating sequence into a single element and return the RTX.  */
+rtx
+rvv_builder::get_merged_repeating_sequence ()
+{
+  scalar_int_mode mode = Pmode;
+  rtx target = gen_reg_rtx (mode);
+  emit_move_insn (target, const0_rtx);
+  rtx imm = gen_int_mode ((1ULL << m_inner_size) - 1, mode);
+  /* { a, b, a, b }: Generate duplicate element = b << bits | a.  */
+  for (unsigned int i = 0; i < npatterns (); i++)
+    {
+      unsigned int loc = m_inner_size * i;
+      rtx shift = gen_int_mode (loc, mode);
+      rtx ele = gen_lowpart (mode, elt (i));
+      rtx tmp = expand_simple_binop (mode, AND, ele, imm, NULL_RTX, false,
+				     OPTAB_DIRECT);
+      rtx tmp2 = expand_simple_binop (mode, ASHIFT, tmp, shift, NULL_RTX, false,
+				      OPTAB_DIRECT);
+      rtx tmp3 = expand_simple_binop (mode, IOR, tmp2, target, NULL_RTX, false,
+				      OPTAB_DIRECT);
+      emit_move_insn (target, tmp3);
+    }
+  if (GET_MODE_SIZE (m_new_inner_mode) < UNITS_PER_WORD)
+    return gen_lowpart (m_new_inner_mode, target);
+  return target;
+}
+
+/* Subroutine of riscv_vector_expand_vector_init.
+   Works as follows:
+   (a) Initialize TARGET by broadcasting element NELTS_REQD - 1 of BUILDER.
+   (b) Skip leading elements from BUILDER, which are the same as
+       element NELTS_REQD - 1.
+   (c) Insert earlier elements in reverse order in TARGET using vslide1down.  */
+
+static void
+expand_vector_init_insert_elems (rtx target, const rvv_builder &builder,
+				 int nelts_reqd)
+{
+  machine_mode mode = GET_MODE (target);
+  scalar_mode elem_mode = GET_MODE_INNER (mode);
+  machine_mode mask_mode;
+  gcc_assert (get_mask_mode (mode).exists (&mask_mode));
+  rtx dup = expand_vector_broadcast (mode, builder.elt (0));
+  emit_move_insn (target, dup);
+  int ndups = builder.count_dups (0, nelts_reqd - 1, 1);
+  for (int i = ndups; i < nelts_reqd; i++)
+    {
+      unsigned int unspec
+	= FLOAT_MODE_P (mode) ? UNSPEC_VFSLIDE1DOWN : UNSPEC_VSLIDE1DOWN;
+      insn_code icode = code_for_pred_slide (unspec, mode);
+      emit_len_binop (icode, target, target, builder.elt (i), NULL, mask_mode,
+		      elem_mode);
+    }
+}
+
+/* Initialize register TARGET from the elements in PARALLEL rtx VALS.  */
+
+void
+expand_vec_init (rtx target, rtx vals)
+{
+  machine_mode mode = GET_MODE (target);
+  int nelts = XVECLEN (vals, 0);
+
+  rvv_builder v (mode, nelts, 1);
+  for (int i = 0; i < nelts; i++)
+    v.quick_push (XVECEXP (vals, 0, i));
+  v.finalize ();
+
+  if (nelts > 3)
+    {
+      /* Case 1: Convert v = { a, b, a, b } into v = { ab, ab }.  */
+      if (v.can_duplicate_repeating_sequence_p ())
+	{
+	  rtx ele = v.get_merged_repeating_sequence ();
+	  rtx dup = expand_vector_broadcast (v.new_mode (), ele);
+	  emit_move_insn (target, gen_lowpart (mode, dup));
+	  return;
+	}
+      /* TODO: We will support more Initialization of vector in the future.  */
+    }
+
+  /* Handle common situation by vslide1down. This function can handle any
+     situation of vec_init<mode>. Only the cases that are not optimized above
+     will fall through here.  */
+  expand_vector_init_insert_elems (target, v, nelts);
 }
 
 } // namespace riscv_vector

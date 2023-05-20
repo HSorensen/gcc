@@ -1,3 +1,49 @@
+2023-05-19  Martin Uecker  <uecker@tugraz.at>
+
+	* c-decl.cc (set_type_context): Remove.
+	(pop_scope, diagnose_mismatched_decls, pushdecl):
+	Remove dead code.
+	* c-typeck.cc (comptypes_internal): Remove dead code.
+	(same_translation_unit_p): Remove.
+	(tagged_types_tu_compatible_p): Some fixes.
+
+2023-05-19  Joseph Myers  <joseph@codesourcery.com>
+
+	* c-decl.cc (diagnose_mismatched_decls): Do not handle
+	thread-local declarations as tentative definitions for C2x.
+	(finish_decl): Do not allow thread-local definition with
+	incomplete type for C2x.
+
+2023-05-18  Bernhard Reutner-Fischer  <aldot@gcc.gnu.org>
+
+	* c-convert.cc (c_convert): Ditto.
+	* c-decl.cc (merge_decls): Ditto.
+	* c-parser.cc (c_parser_omp_clause_reduction): Ditto.
+	(c_parser_omp_declare_reduction): Ditto.
+	* c-typeck.cc (build_component_ref): Ditto.
+	(convert_argument): Ditto.
+	(pointer_diff): Ditto.
+	(build_unary_op): Ditto.
+	(build_c_cast): Ditto.
+	(build_modify_expr): Ditto.
+	(store_init_value): Ditto.
+	(constexpr_init_fits_real_type): Ditto.
+	(check_constexpr_init): Ditto.
+	(c_finish_return): Ditto.
+	(handle_omp_array_sections_1): Ditto.
+	(c_finish_omp_clauses): Ditto.
+	* gimple-parser.cc (c_finish_gimple_return): Ditto.
+
+2023-05-16  Joseph Myers  <joseph@codesourcery.com>
+
+	* c-decl.cc (check_for_loop_decls): Use pedwarn_c11 for
+	diagnostics.
+
+2023-05-15  Joseph Myers  <joseph@codesourcery.com>
+
+	* c-decl.cc (grokdeclarator): Ignore _Atomic on function return
+	type for C2x.
+
 2023-04-30  Andrew Pinski  <apinski@marvell.com>
 
 	* c-typeck.cc (process_init_element): Print out array type

@@ -996,6 +996,15 @@
   (VNx1DF "DF") (VNx2DF "DF") (VNx4DF "DF") (VNx8DF "DF") (VNx16DF "DF")
 ])
 
+(define_mode_attr vel [
+  (VNx1QI "qi") (VNx2QI "qi") (VNx4QI "qi") (VNx8QI "qi") (VNx16QI "qi") (VNx32QI "qi") (VNx64QI "qi") (VNx128QI "qi")
+  (VNx1HI "hi") (VNx2HI "hi") (VNx4HI "hi") (VNx8HI "hi") (VNx16HI "hi") (VNx32HI "hi") (VNx64HI "hi")
+  (VNx1SI "si") (VNx2SI "si") (VNx4SI "si") (VNx8SI "si") (VNx16SI "si") (VNx32SI "si")
+  (VNx1DI "di") (VNx2DI "di") (VNx4DI "di") (VNx8DI "di") (VNx16DI "di")
+  (VNx1SF "sf") (VNx2SF "sf") (VNx4SF "sf") (VNx8SF "sf") (VNx16SF "sf") (VNx32SF "sf")
+  (VNx1DF "df") (VNx2DF "df") (VNx4DF "df") (VNx8DF "df") (VNx16DF "df")
+])
+
 (define_mode_attr VSUBEL [
   (VNx1HI "QI") (VNx2HI "QI") (VNx4HI "QI") (VNx8HI "QI") (VNx16HI "QI") (VNx32HI "QI") (VNx64HI "QI")
   (VNx1SI "HI") (VNx2SI "HI") (VNx4SI "HI") (VNx8SI "HI") (VNx16SI "HI") (VNx32SI "HI")
@@ -1409,6 +1418,10 @@
 
 (define_code_iterator any_non_commutative_binop [minus div udiv mod umod])
 
+(define_code_iterator any_int_binop_no_shift
+ [plus minus and ior xor smax umax smin umin mult div udiv mod umod
+])
+
 (define_code_iterator any_sat_int_binop [ss_plus ss_minus us_plus us_minus])
 (define_code_iterator sat_int_plus_binop [ss_plus us_plus])
 (define_code_iterator sat_int_minus_binop [ss_minus us_minus])
@@ -1423,10 +1436,13 @@
 
 (define_code_iterator and_ior [and ior])
 
-(define_code_iterator any_float_binop [plus mult smax smin minus div])
-(define_code_iterator commutative_float_binop [plus mult smax smin])
+(define_code_iterator any_float_binop [plus mult minus div])
+(define_code_iterator any_float_binop_nofrm [smax smin])
+(define_code_iterator commutative_float_binop [plus mult])
+(define_code_iterator commutative_float_binop_nofrm [smax smin])
 (define_code_iterator non_commutative_float_binop [minus div])
-(define_code_iterator any_float_unop [neg abs sqrt])
+(define_code_iterator any_float_unop [sqrt])
+(define_code_iterator any_float_unop_nofrm [neg abs])
 
 (define_code_iterator any_fix [fix unsigned_fix])
 (define_code_iterator any_float [float unsigned_float])

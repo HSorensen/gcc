@@ -1155,16 +1155,6 @@ update_label_decls (struct c_scope *scope)
     }
 }
 
-/* Set the TYPE_CONTEXT of all of TYPE's variants to CONTEXT.  */
-
-static void
-set_type_context (tree type, tree context)
-{
-  for (type = TYPE_MAIN_VARIANT (type); type;
-       type = TYPE_NEXT_VARIANT (type))
-    TYPE_CONTEXT (type) = context;
-}
-
 /* Exit a scope.  Restore the state of the identifier-decl mappings
    that were in effect when this scope was entered.  Return a BLOCK
    node containing all the DECLs in this scope that are of interest
@@ -1253,7 +1243,6 @@ pop_scope (void)
 	case ENUMERAL_TYPE:
 	case UNION_TYPE:
 	case RECORD_TYPE:
-	  set_type_context (p, context);
 
 	  /* Types may not have tag-names, in which case the type
 	     appears in the bindings list with b->id NULL.  */
@@ -1364,12 +1353,7 @@ pop_scope (void)
 	     the TRANSLATION_UNIT_DECL.  This makes same_translation_unit_p
 	     work.  */
 	  if (scope == file_scope)
-	    {
 	      DECL_CONTEXT (p) = context;
-	      if (TREE_CODE (p) == TYPE_DECL
-		  && TREE_TYPE (p) != error_mark_node)
-		set_type_context (TREE_TYPE (p), context);
-	    }
 
 	  gcc_fallthrough ();
 	  /* Parameters go in DECL_ARGUMENTS, not BLOCK_VARS, and have
@@ -2318,21 +2302,18 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 	{
 	  if (DECL_INITIAL (olddecl))
 	    {
-	      /* If both decls are in the same TU and the new declaration
-		 isn't overriding an extern inline reject the new decl.
-		 In c99, no overriding is allowed in the same translation
-		 unit.  */
-	      if ((!DECL_EXTERN_INLINE (olddecl)
-		   || DECL_EXTERN_INLINE (newdecl)
-		   || (!flag_gnu89_inline
-		       && (!DECL_DECLARED_INLINE_P (olddecl)
-			   || !lookup_attribute ("gnu_inline",
-						 DECL_ATTRIBUTES (olddecl)))
-		       && (!DECL_DECLARED_INLINE_P (newdecl)
-			   || !lookup_attribute ("gnu_inline",
-						 DECL_ATTRIBUTES (newdecl))))
-		  )
-		  && same_translation_unit_p (newdecl, olddecl))
+	      /* If the new declaration isn't overriding an extern inline
+		 reject the new decl. In c99, no overriding is allowed
+		 in the same translation unit.  */
+	      if (!DECL_EXTERN_INLINE (olddecl)
+		  || DECL_EXTERN_INLINE (newdecl)
+		  || (!flag_gnu89_inline
+		      && (!DECL_DECLARED_INLINE_P (olddecl)
+			  || !lookup_attribute ("gnu_inline",
+						DECL_ATTRIBUTES (olddecl)))
+		      && (!DECL_DECLARED_INLINE_P (newdecl)
+			  || !lookup_attribute ("gnu_inline",
+						DECL_ATTRIBUTES (newdecl)))))
 		{
 		  auto_diagnostic_group d;
 		  error ("redefinition of %q+D", newdecl);
@@ -2442,8 +2423,20 @@ diagnose_mismatched_decls (tree newdecl, tree olddecl,
 	  return false;
 	}
 
-      /* Multiple initialized definitions are not allowed (6.9p3,5).  */
-      if (DECL_INITIAL (newdecl) && DECL_INITIAL (olddecl))
+      /* Multiple initialized definitions are not allowed (6.9p3,5).
+	 For this purpose, C2x makes it clear that thread-local
+	 declarations without extern are definitions, not tentative
+	 definitions, whether or not they have initializers.  The
+	 wording before C2x was unclear; literally it would have made
+	 uninitialized thread-local declarations into tentative
+	 definitions only if they also used static, but without saying
+	 explicitly whether or not other cases count as
+	 definitions at all.  */
+      if ((DECL_INITIAL (newdecl) && DECL_INITIAL (olddecl))
+	  || (flag_isoc2x
+	      && DECL_THREAD_LOCAL_P (newdecl)
+	      && !DECL_EXTERNAL (newdecl)
+	      && !DECL_EXTERNAL (olddecl)))
 	{
 	  auto_diagnostic_group d;
 	  error ("redefinition of %q+D", newdecl);
@@ -2746,11 +2739,11 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
      system header. Otherwise, keep source location of definition rather than
      declaration and of prototype rather than non-prototype unless that
      prototype is built-in.  */
-  if (CODE_CONTAINS_STRUCT (TREE_CODE (olddecl), TS_DECL_WITH_VIS)
+  if (HAS_DECL_ASSEMBLER_NAME_P (olddecl)
       && DECL_IN_SYSTEM_HEADER (olddecl)
       && !DECL_IN_SYSTEM_HEADER (newdecl) )
     DECL_SOURCE_LOCATION (newdecl) = DECL_SOURCE_LOCATION (olddecl);
-  else if (CODE_CONTAINS_STRUCT (TREE_CODE (olddecl), TS_DECL_WITH_VIS)
+  else if (HAS_DECL_ASSEMBLER_NAME_P (olddecl)
 	   && DECL_IN_SYSTEM_HEADER (newdecl)
 	   && !DECL_IN_SYSTEM_HEADER (olddecl))
     DECL_SOURCE_LOCATION (olddecl) = DECL_SOURCE_LOCATION (newdecl);
@@ -2777,7 +2770,7 @@ merge_decls (tree newdecl, tree olddecl, tree newtype, tree oldtype)
   if (VAR_P (olddecl) && C_DECL_THREADPRIVATE_P (olddecl))
     C_DECL_THREADPRIVATE_P (newdecl) = 1;
 
-  if (CODE_CONTAINS_STRUCT (TREE_CODE (olddecl), TS_DECL_WITH_VIS))
+  if (HAS_DECL_ASSEMBLER_NAME_P (olddecl))
     {
       /* Copy the assembler name.
 	 Currently, it can only be defined in the prototype.  */
@@ -3360,18 +3353,11 @@ pushdecl (tree x)
 	 type to the composite of all the types of that declaration.
 	 After the consistency checks, it will be reset to the
 	 composite of the visible types only.  */
-      if (b && (TREE_PUBLIC (x) || same_translation_unit_p (x, b->decl))
-	  && b->u.type)
+      if (b && b->u.type)
 	TREE_TYPE (b->decl) = b->u.type;
 
-      /* The point of the same_translation_unit_p check here is,
-	 we want to detect a duplicate decl for a construct like
-	 foo() { extern bar(); } ... static bar();  but not if
-	 they are in different translation units.  In any case,
-	 the static does not go in the externals scope.  */
-      if (b
-	  && (TREE_PUBLIC (x) || same_translation_unit_p (x, b->decl))
-	  && duplicate_decls (x, b->decl))
+      /* the static does not go in the externals scope.  */
+      if (b && duplicate_decls (x, b->decl))
 	{
 	  tree thistype;
 	  if (vistype)
@@ -5714,10 +5700,12 @@ finish_decl (tree decl, location_t init_loc, tree init,
 	      /* A static variable with an incomplete type
 		 is an error if it is initialized.
 		 Also if it is not file scope.
+		 Also if it is thread-local (in C2x).
 		 Otherwise, let it through, but if it is not `extern'
 		 then it may cause an error message later.  */
 	      ? (DECL_INITIAL (decl) != NULL_TREE
-		 || !DECL_FILE_SCOPE_P (decl))
+		 || !DECL_FILE_SCOPE_P (decl)
+		 || (flag_isoc2x && DECL_THREAD_LOCAL_P (decl)))
 	      /* An automatic variable with an incomplete type
 		 is an error.  */
 	      : !DECL_EXTERNAL (decl)))
@@ -7412,9 +7400,12 @@ grokdeclarator (const struct c_declarator *declarator,
 		   them for noreturn functions.  The resolution of C11
 		   DR#423 means qualifiers (other than _Atomic) are
 		   actually removed from the return type when
-		   determining the function type.  */
+		   determining the function type.  For C2X, _Atomic is
+		   removed as well.  */
 		int quals_used = type_quals;
-		if (flag_isoc11)
+		if (flag_isoc2x)
+		  quals_used = 0;
+		else if (flag_isoc11)
 		  quals_used &= TYPE_QUAL_ATOMIC;
 		if (quals_used && VOID_TYPE_P (type) && really_funcdef)
 		  pedwarn (specs_loc, 0,
@@ -11029,7 +11020,9 @@ check_for_loop_decls (location_t loc, bool turn_off_iso_c99_error)
      only applies to those that are.  (A question on this in comp.std.c
      in November 2000 received no answer.)  We implement the strictest
      interpretation, to avoid creating an extension which later causes
-     problems.  */
+     problems.
+
+     This constraint was removed in C2X.  */
 
   for (b = current_scope->bindings; b; b = b->prev)
     {
@@ -11045,33 +11038,35 @@ check_for_loop_decls (location_t loc, bool turn_off_iso_c99_error)
 	  {
 	    location_t decl_loc = DECL_SOURCE_LOCATION (decl);
 	    if (TREE_STATIC (decl))
-	      error_at (decl_loc,
-			"declaration of static variable %qD in %<for%> loop "
-			"initial declaration", decl);
+	      pedwarn_c11 (decl_loc, OPT_Wpedantic,
+			   "declaration of static variable %qD in %<for%> "
+			   "loop initial declaration", decl);
 	    else if (DECL_EXTERNAL (decl))
-	      error_at (decl_loc,
-			"declaration of %<extern%> variable %qD in %<for%> loop "
-			"initial declaration", decl);
+	      pedwarn_c11 (decl_loc, OPT_Wpedantic,
+			   "declaration of %<extern%> variable %qD in %<for%> "
+			   "loop initial declaration", decl);
 	  }
 	  break;
 
 	case RECORD_TYPE:
-	  error_at (loc,
-		    "%<struct %E%> declared in %<for%> loop initial "
-		    "declaration", id);
+	  pedwarn_c11 (loc, OPT_Wpedantic,
+		       "%<struct %E%> declared in %<for%> loop initial "
+		       "declaration", id);
 	  break;
 	case UNION_TYPE:
-	  error_at (loc,
-		    "%<union %E%> declared in %<for%> loop initial declaration",
-		    id);
+	  pedwarn_c11 (loc, OPT_Wpedantic,
+		       "%<union %E%> declared in %<for%> loop initial "
+		       "declaration",
+		       id);
 	  break;
 	case ENUMERAL_TYPE:
-	  error_at (loc, "%<enum %E%> declared in %<for%> loop "
-		    "initial declaration", id);
+	  pedwarn_c11 (loc, OPT_Wpedantic,
+		       "%<enum %E%> declared in %<for%> loop "
+		       "initial declaration", id);
 	  break;
 	default:
-	  error_at (loc, "declaration of non-variable "
-		    "%qD in %<for%> loop initial declaration", decl);
+	  pedwarn_c11 (loc, OPT_Wpedantic, "declaration of non-variable "
+		       "%qD in %<for%> loop initial declaration", decl);
 	}
 
       n_decls++;
