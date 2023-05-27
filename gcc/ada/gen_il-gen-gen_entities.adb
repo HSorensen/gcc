@@ -57,7 +57,6 @@ begin -- Gen_IL.Gen.Gen_Entities
         Sm (Debug_Info_Off, Flag),
         Sm (Default_Expressions_Processed, Flag),
         Sm (Delay_Cleanups, Flag),
-        Sm (Delay_Subprogram_Descriptors, Flag),
         Sm (Depends_On_Private, Flag),
         Sm (Disable_Controlled, Flag, Base_Type_Only),
         Sm (Discard_Names, Flag),
@@ -177,6 +176,7 @@ begin -- Gen_IL.Gen.Gen_Entities
         Sm (Is_Package_Body_Entity, Flag),
         Sm (Is_Packed, Flag, Impl_Base_Type_Only),
         Sm (Is_Packed_Array_Impl_Type, Flag),
+        Sm (Is_Not_Self_Hidden, Flag),
         Sm (Is_Potentially_Use_Visible, Flag),
         Sm (Is_Preelaborated, Flag),
         Sm (Is_Private_Descendant, Flag),
@@ -1224,6 +1224,7 @@ begin -- Gen_IL.Gen.Gen_Entities
        --  implicit label declaration, not the occurrence of the label itself,
        --  which is simply a direct name referring to the label.
        (Sm (Enclosing_Scope, Node_Id),
+        Sm (Entry_Cancel_Parameter, Node_Id),
         Sm (Reachable, Flag),
         Sm (Renamed_Or_Alias, Node_Id)));
 

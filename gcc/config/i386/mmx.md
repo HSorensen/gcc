@@ -2680,6 +2680,28 @@
        (const_string "0")))
    (set_attr "mode" "TI")])
 
+(define_expand "<insn>v8qi3"
+  [(set (match_operand:V8QI 0 "register_operand")
+	(any_shift:V8QI (match_operand:V8QI 1 "register_operand")
+			(match_operand:DI 2 "nonmemory_operand")))]
+  "TARGET_MMX_WITH_SSE"
+{
+  ix86_expand_vecop_qihi_partial (<CODE>, operands[0],
+				  operands[1], operands[2]);
+  DONE;
+})
+
+(define_expand "<insn>v4qi3"
+  [(set (match_operand:V4QI 0 "register_operand")
+	(any_shift:V4QI (match_operand:V4QI 1 "register_operand")
+			(match_operand:DI 2 "nonmemory_operand")))]
+  "TARGET_SSE2"
+{
+  ix86_expand_vecop_qihi_partial (<CODE>, operands[0],
+				  operands[1], operands[2]);
+  DONE;
+})
+
 (define_insn_and_split "<insn>v2qi3"
   [(set (match_operand:V2QI 0 "register_operand" "=Q")
         (any_shift:V2QI
@@ -2711,6 +2733,30 @@
 }
   [(set_attr "type" "multi")
    (set_attr "mode" "QI")])
+
+(define_expand "v<insn>v8qi3"
+  [(set (match_operand:V8QI 0 "register_operand")
+	(any_shift:V8QI
+	  (match_operand:V8QI 1 "register_operand")
+	  (match_operand:V8QI 2 "register_operand")))]
+  "TARGET_AVX512BW && TARGET_AVX512VL && TARGET_MMX_WITH_SSE"
+{
+  ix86_expand_vecop_qihi_partial (<CODE>, operands[0],
+				  operands[1], operands[2]);
+  DONE;
+})
+
+(define_expand "v<insn>v4qi3"
+  [(set (match_operand:V4QI 0 "register_operand")
+	(any_shift:V4QI
+	  (match_operand:V4QI 1 "register_operand")
+	  (match_operand:V4QI 2 "register_operand")))]
+  "TARGET_AVX512BW && TARGET_AVX512VL"
+{
+  ix86_expand_vecop_qihi_partial (<CODE>, operands[0],
+				  operands[1], operands[2]);
+  DONE;
+})
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

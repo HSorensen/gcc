@@ -1040,10 +1040,11 @@ package body Exp_Disp is
 
       --  Ada 2005 (AI-251): Abstract interface class-wide type
 
-      elsif Is_Interface (Ctrl_Typ)
-        and then Is_Class_Wide_Type (Ctrl_Typ)
-      then
-         Controlling_Tag := Duplicate_Subexpr (Ctrl_Arg);
+      elsif Is_Interface (Ctrl_Typ) and then Is_Class_Wide_Type (Ctrl_Typ) then
+         Controlling_Tag :=
+           Make_Attribute_Reference (Loc,
+             Prefix         => Duplicate_Subexpr (Ctrl_Arg),
+             Attribute_Name => Name_Tag);
 
       elsif Is_Access_Type (Ctrl_Typ) then
          Controlling_Tag :=
@@ -1132,18 +1133,36 @@ package body Exp_Disp is
             Set_SCIL_Controlling_Tag (SCIL_Node,
               Parent (Entity (Prefix (Controlling_Tag))));
 
-         --  For a direct reference of the tag of the type the SCIL node
-         --  references the internal object declaration containing the tag
-         --  of the type.
+         --  Depending on whether a dereference is involved, the SCIL node
+         --  references the corresponding object/parameter declaration or
+         --  the internal object declaration containing the tag of the type.
 
          elsif Nkind (Controlling_Tag) = N_Attribute_Reference
             and then Attribute_Name (Controlling_Tag) = Name_Tag
          then
-            Set_SCIL_Controlling_Tag (SCIL_Node,
-              Parent
-                (Node
-                  (First_Elmt
-                    (Access_Disp_Table (Entity (Prefix (Controlling_Tag)))))));
+            declare
+               Prefix_Node : constant Node_Id   := Prefix (Controlling_Tag);
+               Ent         : constant Entity_Id := Entity
+                 (if Nkind (Prefix_Node) = N_Explicit_Dereference then
+                    Prefix (Prefix_Node)
+                  else
+                    Prefix_Node);
+
+            begin
+               if Ekind (Ent) in E_Record_Type
+                               | E_Record_Subtype
+                               | E_Record_Type_With_Private
+               then
+                  Set_SCIL_Controlling_Tag (SCIL_Node,
+                    Parent
+                      (Node
+                        (First_Elmt
+                          (Access_Disp_Table (Ent)))));
+
+               else
+                  Set_SCIL_Controlling_Tag (SCIL_Node, Parent (Ent));
+               end if;
+            end;
 
          --  Interfaces are not supported. For now we leave the SCIL node
          --  decorated with the Controlling_Tag. More work needed here???
@@ -2030,8 +2049,8 @@ package body Exp_Disp is
          then
             --  Generate:
             --     type T is access all <<type of the target formal>>
-            --     S : Storage_Offset := Storage_Offset!(Formal)
-            --                            + Offset_To_Top (address!(Formal))
+            --     S : constant Address := Address!(Formal)
+            --                               + Offset_To_Top (Address!(Formal))
 
             Decl_2 :=
               Make_Full_Type_Declaration (Loc,
@@ -2063,16 +2082,20 @@ package body Exp_Disp is
                 Defining_Identifier => Make_Temporary (Loc, 'S'),
                 Constant_Present    => True,
                 Object_Definition   =>
-                  New_Occurrence_Of (RTE (RE_Storage_Offset), Loc),
+                  New_Occurrence_Of (RTE (RE_Address), Loc),
                 Expression          =>
-                  Make_Op_Add (Loc,
-                    Left_Opnd  =>
-                      Unchecked_Convert_To
-                        (RTE (RE_Storage_Offset),
-                         New_Occurrence_Of
-                           (Defining_Identifier (Formal), Loc)),
-                     Right_Opnd =>
-                       Offset_To_Top));
+                  Make_Function_Call (Loc,
+                    Name =>
+                      Make_Expanded_Name (Loc,
+                        Chars => Name_Op_Add,
+                        Prefix =>
+                          New_Occurrence_Of
+                            (RTU_Entity (System_Storage_Elements), Loc),
+                        Selector_Name =>
+                          Make_Identifier (Loc, Name_Op_Add)),
+                    Parameter_Associations => New_List (
+                      New_Copy_Tree (New_Arg),
+                      Offset_To_Top)));
 
             Append_To (Decl, Decl_2);
             Append_To (Decl, Decl_1);
@@ -2088,16 +2111,15 @@ package body Exp_Disp is
          elsif Is_Controlling_Formal (Target_Formal) then
 
             --  Generate:
-            --     S1 : Storage_Offset := Storage_Offset!(Formal'Address)
-            --                             + Offset_To_Top (Formal'Address)
-            --     S2 : Addr_Ptr := Addr_Ptr!(S1)
+            --     S1 : constant Address := Formal'Address
+            --                                + Offset_To_Top (Formal'Address)
+            --     S2 : constant Addr_Ptr := Addr_Ptr!(S1)
 
             New_Arg :=
               Make_Attribute_Reference (Loc,
                 Prefix =>
                   New_Occurrence_Of (Defining_Identifier (Formal), Loc),
-                Attribute_Name =>
-                  Name_Address);
+                Attribute_Name => Name_Address);
 
             if not RTE_Available (RE_Offset_To_Top) then
                Offset_To_Top :=
@@ -2114,19 +2136,20 @@ package body Exp_Disp is
                 Defining_Identifier => Make_Temporary (Loc, 'S'),
                 Constant_Present    => True,
                 Object_Definition   =>
-                  New_Occurrence_Of (RTE (RE_Storage_Offset), Loc),
+                  New_Occurrence_Of (RTE (RE_Address), Loc),
                 Expression          =>
-                  Make_Op_Add (Loc,
-                    Left_Opnd =>
-                      Unchecked_Convert_To
-                        (RTE (RE_Storage_Offset),
-                         Make_Attribute_Reference (Loc,
-                           Prefix =>
-                             New_Occurrence_Of
-                               (Defining_Identifier (Formal), Loc),
-                           Attribute_Name => Name_Address)),
-                    Right_Opnd =>
-                      Offset_To_Top));
+                  Make_Function_Call (Loc,
+                    Name =>
+                      Make_Expanded_Name (Loc,
+                        Chars => Name_Op_Add,
+                        Prefix =>
+                          New_Occurrence_Of
+                            (RTU_Entity (System_Storage_Elements), Loc),
+                        Selector_Name =>
+                          Make_Identifier (Loc, Name_Op_Add)),
+                    Parameter_Associations => New_List (
+                      New_Copy_Tree (New_Arg),
+                      Offset_To_Top)));
 
             Decl_2 :=
               Make_Object_Declaration (Loc,

@@ -1052,8 +1052,8 @@ package Sinfo is
    --    and their first named subtypes.
 
    --  Corresponding_Spec
-   --    This field is set in subprogram, package, task, and protected body
-   --    nodes, where it points to the defining entity in the corresponding
+   --    This field is set in subprogram, package, task, entry and protected
+   --    body nodes where it points to the defining entity in the corresponding
    --    spec. The attribute is also set in N_With_Clause nodes where it points
    --    to the defining entity for the with'ed spec, and in a subprogram
    --    renaming declaration when it is a Renaming_As_Body. The field is Empty
@@ -1329,8 +1329,9 @@ package Sinfo is
    --    to the entity for the first subtype.
 
    --  Float_Truncate
-   --    A flag present in type conversion nodes. This is used for float to
-   --    integer conversions where truncation is required rather than rounding.
+   --    A flag present in type conversion nodes. It is used for floating-point
+   --    to fixed-point or integer conversions, where truncation is required
+   --    rather than rounding.
 
    --  Forwards_OK
    --    A flag present in the N_Assignment_Statement node. It is used only
@@ -1712,6 +1713,7 @@ package Sinfo is
    --      Abstract_State
    --      Contract_Cases
    --      Depends
+   --      Exceptional_Cases
    --      Extensions_Visible
    --      Global
    --      Initial_Condition
@@ -1726,6 +1728,7 @@ package Sinfo is
    --      Refined_Global
    --      Refined_Post
    --      Refined_State
+   --      Subprogram_Variant
    --      Test_Case
 
    --  Is_Homogeneous_Aggregate
@@ -6206,6 +6209,7 @@ package Sinfo is
       --  Declarations
       --  Handled_Statement_Sequence
       --  Activation_Chain_Entity
+      --  Corresponding_Spec
       --  At_End_Proc (set to Empty if no clean up procedure)
 
       -----------------------------------
@@ -7962,8 +7966,8 @@ package Sinfo is
       --  operation) are also in this list.
 
       --  Contract_Test_Cases contains a collection of pragmas that correspond
-      --  to aspects/pragmas Contract_Cases, Test_Case and Subprogram_Variant.
-      --  The ordering in the list is in LIFO fashion.
+      --  to aspects/pragmas Contract_Cases, Exceptional_Cases, Test_Case and
+      --  Subprogram_Variant. The ordering in the list is in LIFO fashion.
 
       --  Classifications contains pragmas that either declare, categorize, or
       --  establish dependencies between subprogram or package inputs and

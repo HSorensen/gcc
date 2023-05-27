@@ -17116,17 +17116,17 @@
 
 ;; PR target/100711: Split notl; vpbroadcastd; vpand as vpbroadcastd; vpandn
 (define_split
-  [(set (match_operand:VI124_AVX2 0 "register_operand")
-	(and:VI124_AVX2
-	  (vec_duplicate:VI124_AVX2
+  [(set (match_operand:VI_AVX2 0 "register_operand")
+	(and:VI_AVX2
+	  (vec_duplicate:VI_AVX2
 	    (not:<ssescalarmode>
 	      (match_operand:<ssescalarmode> 1 "register_operand")))
-	  (match_operand:VI124_AVX2 2 "vector_operand")))]
+	  (match_operand:VI_AVX2 2 "vector_operand")))]
   "TARGET_AVX2"
   [(set (match_dup 3)
-	(vec_duplicate:VI124_AVX2 (match_dup 1)))
+	(vec_duplicate:VI_AVX2 (match_dup 1)))
    (set (match_dup 0)
-	(and:VI124_AVX2 (not:VI124_AVX2 (match_dup 3))
+	(and:VI_AVX2 (not:VI_AVX2 (match_dup 3))
 			(match_dup 2)))]
   "operands[3] = gen_reg_rtx (<MODE>mode);")
 
@@ -24562,17 +24562,6 @@
       ix86_expand_vecop_qihi (<CODE>, operands[0], operands[1], operands[2]);
       DONE;
     }
-})
-
-(define_expand "v<insn>v8qi3"
-  [(set (match_operand:V8QI 0 "register_operand")
-	(any_shift:V8QI
-	  (match_operand:V8QI 1 "register_operand")
-	  (match_operand:V8QI 2 "nonimmediate_operand")))]
-  "TARGET_AVX512BW && TARGET_AVX512VL && TARGET_64BIT"
-{
-  ix86_expand_vecop_qihi (<CODE>, operands[0], operands[1], operands[2]);
-  DONE;
 })
 
 (define_expand "vlshr<mode>3"

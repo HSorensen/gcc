@@ -269,14 +269,14 @@ add_vrange (const vrange &v, inchash::hash &hstate,
   if (is_a <frange> (v))
     {
       const frange &r = as_a <frange> (v);
-      if (r.varying_p ())
-	hstate.add_int (VR_VARYING);
+      if (r.known_isnan ())
+	hstate.add_int (VR_NAN);
       else
-	hstate.add_int (VR_RANGE);
-
-      hstate.add_real_value (r.lower_bound ());
-      hstate.add_real_value (r.upper_bound ());
-
+	{
+	  hstate.add_int (r.varying_p () ? VR_VARYING : VR_RANGE);
+	  hstate.add_real_value (r.lower_bound ());
+	  hstate.add_real_value (r.upper_bound ());
+	}
       nan_state nan = r.get_nan_state ();
       hstate.add_int (nan.pos_p ());
       hstate.add_int (nan.neg_p ());
@@ -359,14 +359,7 @@ frange::set (tree type,
       gcc_unreachable ();
     }
 
-  // Handle NANs.
-  if (real_isnan (&min) || real_isnan (&max))
-    {
-      gcc_checking_assert (real_identical (&min, &max));
-      bool sign = real_isneg (&min);
-      set_nan (type, sign);
-      return;
-    }
+  gcc_checking_assert (!real_isnan (&min) && !real_isnan (&max));
 
   m_kind = kind;
   m_type = type;
@@ -1650,14 +1643,6 @@ irange::invert ()
   wide_int type_min = wi::min_value (prec, sign);
   wide_int type_max = wi::max_value (prec, sign);
   m_nonzero_mask = wi::minus_one (prec);
-  if (m_num_ranges == m_max_ranges
-      && lower_bound () != type_min
-      && upper_bound () != type_max)
-    {
-      m_base[1] = type_max;
-      m_num_ranges = 1;
-      return;
-    }
 
   // At this point, we need one extra sub-range to represent the
   // inverse.

@@ -1,3 +1,1007 @@
+2023-05-26  Robin Dapp  <rdapp@ventanamicro.com>
+
+	* config/riscv/autovec.md (<optab><mode>2): Add vneg/vnot.
+	(abs<mode>2): Add.
+	* config/riscv/riscv-protos.h (emit_vlmax_masked_mu_insn):
+	Declare.
+	* config/riscv/riscv-v.cc (emit_vlmax_masked_mu_insn): New
+	function.
+
+2023-05-26  Robin Dapp  <rdapp@ventanamicro.com>
+	    Juzhe Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/autovec.md (<optab><v_double_trunc><mode>2): New
+	expander.
+	(<optab><v_quad_trunc><mode>2): Dito.
+	(<optab><v_oct_trunc><mode>2): Dito.
+	(trunc<mode><v_double_trunc>2): Dito.
+	(trunc<mode><v_quad_trunc>2): Dito.
+	(trunc<mode><v_oct_trunc>2): Dito.
+	* config/riscv/riscv-protos.h (vectorize_related_mode): Define.
+	(autovectorize_vector_modes): Define.
+	* config/riscv/riscv-v.cc (vectorize_related_mode): Implement
+	hook.
+	(autovectorize_vector_modes): Implement hook.
+	* config/riscv/riscv.cc (riscv_autovectorize_vector_modes):
+	Implement target hook.
+	(riscv_vectorize_related_mode): Implement target hook.
+	(TARGET_VECTORIZE_AUTOVECTORIZE_VECTOR_MODES): Define.
+	(TARGET_VECTORIZE_RELATED_MODE): Define.
+	* config/riscv/vector-iterators.md: Add lowercase versions of
+	mode_attr iterators.
+
+2023-05-26  Andrew Stubbs  <ams@codesourcery.com>
+	    Tobias Burnus  <tobias@codesourcery.com>
+
+	* config/gcn/gcn-hsa.h (XNACKOPT): New macro.
+	(ASM_SPEC): Use XNACKOPT.
+	* config/gcn/gcn-opts.h (enum sram_ecc_type): Rename to ...
+	(enum hsaco_attr_type): ... this, and generalize the names.
+	(TARGET_XNACK): New macro.
+	* config/gcn/gcn.cc (gcn_option_override): Update to sorry for all
+	but -mxnack=off.
+	(output_file_start): Update xnack handling.
+	(gcn_hsa_declare_function_name): Use TARGET_XNACK.
+	* config/gcn/gcn.opt (-mxnack): Add the "on/off/any" syntax.
+	(sram_ecc_type): Rename to ...
+	(hsaco_attr_type: ... this.)
+	* config/gcn/mkoffload.cc (SET_XNACK_ANY): New macro.
+	(TEST_XNACK): Delete.
+	(TEST_XNACK_ANY): New macro.
+	(TEST_XNACK_ON): New macro.
+	(main): Support the new -mxnack=on/off/any syntax.
+	* doc/invoke.texi (-mxnack): Update for new syntax.
+
+2023-05-26  Andrew Pinski  <apinski@marvell.com>
+
+	* genmatch.cc (emit_debug_printf): New function.
+	(dt_simplify::gen_1): Emit printf into the code
+	before the `return true` or returning the folded result
+	instead of emitting it always.
+
+2023-05-26  Takayuki 'January June' Suwa  <jjsuwa_sys3175@yahoo.co.jp>
+
+	* config/xtensa/xtensa-protos.h
+	(xtensa_expand_block_set_unrolled_loop,
+	xtensa_expand_block_set_small_loop): Remove.
+	(xtensa_expand_block_set): New prototype.
+	* config/xtensa/xtensa.cc
+	(xtensa_expand_block_set_libcall): New subfunction.
+	(xtensa_expand_block_set_unrolled_loop,
+	xtensa_expand_block_set_small_loop): Rewrite as subfunctions.
+	(xtensa_expand_block_set): New function that calls the above
+	subfunctions.
+	* config/xtensa/xtensa.md (memsetsi): Change to invoke only
+	xtensa_expand_block_set().
+
+2023-05-26  Takayuki 'January June' Suwa  <jjsuwa_sys3175@yahoo.co.jp>
+
+	* config/xtensa/xtensa-protos.h (xtensa_m1_or_1_thru_15):
+	New prototype.
+	* config/xtensa/xtensa.cc (xtensa_m1_or_1_thru_15):
+	New function.
+	* config/xtensa/constraints.md (O):
+	Change to use the above function.
+	* config/xtensa/xtensa.md (*subsi3_from_const):
+	New insn_and_split pattern.
+
+2023-05-26  Takayuki 'January June' Suwa  <jjsuwa_sys3175@yahoo.co.jp>
+
+	* config/xtensa/xtensa.md (*extzvsi-1bit_ashlsi3):
+	Retract excessive line folding, and correct the value of
+	the "length" insn attribute related to TARGET_DENSITY.
+	(*extzvsi-1bit_addsubx): Ditto.
+
+2023-05-26  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386-expand.cc (ix86_expand_vecop_qihi):
+	Do not disable call to ix86_expand_vecop_qihi2.
+
+2023-05-26  liuhongt  <hongtao.liu@intel.com>
+
+	PR target/109610
+	PR target/109858
+	* ira-costs.cc (scan_one_insn): Only use NO_REGS in cost
+	calculation when !hard_regno_mode_ok for GENERAL_REGS and
+	mode, otherwise still use GENERAL_REGS.
+
+2023-05-26  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/riscv.cc (vector_zero_call_used_regs): Add
+	explict VL and drop VL in ops.
+
+2023-05-25  Jin Ma  <jinma@linux.alibaba.com>
+
+	* sched-deps.cc (sched_macro_fuse_insns): Insns should not be fusion
+	in different BB blocks.
+
+2023-05-25  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386-expand.cc (ix86_expand_vecop_qihi2):
+	Rewrite to expand to 2x-wider (e.g. V16QI -> V16HImode)
+	instructions when available.  Emulate truncation via
+	ix86_expand_vec_perm_const_1 when native truncate insn
+	is not available.
+	(ix86_expand_vecop_qihi_partial) <case MULT>: Use pmovzx
+	when available.  Trivially rename some variables.
+	(ix86_expand_vecop_qihi): Unconditionally call ix86_expand_vecop_qihi2.
+	* config/i386/i386.cc (ix86_multiplication_cost): Rewrite cost
+	calculation of V*QImode emulations to account for generation of
+	2x-wider mode instructions.
+	(ix86_shift_rotate_cost): Update cost calculation of V*QImode
+	emulations to account for generation of 2x-wider mode instructions.
+
+2023-05-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/104327
+	* config/avr/avr.cc (avr_can_inline_p): New static function.
+	(TARGET_CAN_INLINE_P): Define to that function.
+
+2023-05-25  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/82931
+	* config/avr/avr.md (*movbitqi.0): Rename to *movbit<mode>.0-6.
+	Handle any bit position and use mode QISI.
+	* config/avr/avr.cc (avr_rtx_costs_1) [IOR]: Return a cost
+	of 2 insns for bit-transfer of respective style.
+
+2023-05-25  Christophe Lyon  <christophe.lyon@linaro.org>
+
+	* config/arm/iterators.md (MVE_6): Remove.
+	* config/arm/mve.md: Replace MVE_6 with MVE_5.
+
+2023-05-25  Ju-Zhe Zhong  <juzhe.zhong@rivai.ai>
+	    Richard Sandiford  <richard.sandiford@arm.com>
+
+	* tree-vect-loop-manip.cc (vect_adjust_loop_lens_control): New
+	function.
+	(vect_set_loop_controls_directly): Add decrement IV support.
+	(vect_set_loop_condition_partial_vectors): Ditto.
+	* tree-vect-loop.cc (_loop_vec_info::_loop_vec_info): New
+	variable.
+	* tree-vectorizer.h (LOOP_VINFO_USING_DECREMENTING_IV_P): New
+	macro.
+
+2023-05-25  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	PR target/99195
+	* config/aarch64/aarch64-simd.md (aarch64_fcadd<rot><mode>): Rename to...
+	(aarch64_fcadd<rot><mode><vczle><vczbe>): ... This.
+	Fix canonicalization of PLUS operands.
+	(aarch64_fcmla<rot><mode>): Rename to...
+	(aarch64_fcmla<rot><mode><vczle><vczbe>): ... This.
+	Fix canonicalization of PLUS operands.
+	(aarch64_fcmla_lane<rot><mode>): Rename to...
+	(aarch64_fcmla_lane<rot><mode><vczle><vczbe>): ... This.
+	Fix canonicalization of PLUS operands.
+	(aarch64_fcmla_laneq<rot>v4hf): Rename to...
+	(aarch64_fcmla_laneq<rot>v4hf<vczle><vczbe>): ... This.
+	Fix canonicalization of PLUS operands.
+	(aarch64_fcmlaq_lane<rot><mode>): Fix canonicalization of PLUS operands.
+
+2023-05-25  Chris Sidebottom  <chris.sidebottom@arm.com>
+
+	* config/arm/arm.md (rbitsi2): Rename to...
+	(arm_rbit): ... This.
+	(ctzsi2): Adjust for the above.
+	(arm_rev16si2): Convert to define_expand.
+	(arm_rev16si2_alt1): New pattern.
+	(arm_rev16si2_alt): Rename to...
+	(*arm_rev16si2_alt2): ... This.
+	* config/arm/arm_acle.h (__ror, __rorl, __rorll, __clz, __clzl, __clzll,
+	__cls, __clsl, __clsll, __revsh, __rev, __revl, __revll, __rev16,
+	__rev16l, __rev16ll, __rbit, __rbitl, __rbitll): Define intrinsics.
+	* config/arm/arm_acle_builtins.def (rbit, rev16si2): Define builtins.
+
+2023-05-25  Alex Coplan  <alex.coplan@arm.com>
+
+	PR target/109800
+	* config/arm/arm.md (movdf): Generate temporary pseudo in DImode
+	instead of DFmode.
+	* config/arm/vfp.md (no_literal_pool_df_immediate): Rather than punning an
+	lvalue DFmode pseudo into DImode, use a DImode pseudo and pun it into
+	DFmode as an rvalue.
+
+2023-05-25  Richard Biener  <rguenther@suse.de>
+
+	PR target/109955
+	* tree-vect-stmts.cc (vectorizable_condition): For
+	embedded comparisons also handle the case when the target
+	only provides vec_cmp and vcond_mask.
+
+2023-05-25  Claudiu Zissulescu  <claziss@gmail.com>
+
+	* config/arc/arc.cc (arc_call_tls_get_addr): Simplify access using
+	TLS Local Dynamic.
+
+2023-05-25  Prathamesh Kulkarni  <prathamesh.kulkarni@linaro.org>
+
+	* config/aarch64/aarch64.cc (scalar_move_insn_p): New function.
+	(seq_cost_ignoring_scalar_moves): Likewise.
+	(aarch64_expand_vector_init): Call seq_cost_ignoring_scalar_moves.
+
+2023-05-25  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	* config/aarch64/arm_neon.h (vcage_f64): Reimplement with builtins.
+	(vcage_f32): Likewise.
+	(vcages_f32): Likewise.
+	(vcageq_f32): Likewise.
+	(vcaged_f64): Likewise.
+	(vcageq_f64): Likewise.
+	(vcagts_f32): Likewise.
+	(vcagt_f32): Likewise.
+	(vcagt_f64): Likewise.
+	(vcagtq_f32): Likewise.
+	(vcagtd_f64): Likewise.
+	(vcagtq_f64): Likewise.
+	(vcale_f32): Likewise.
+	(vcale_f64): Likewise.
+	(vcaled_f64): Likewise.
+	(vcales_f32): Likewise.
+	(vcaleq_f32): Likewise.
+	(vcaleq_f64): Likewise.
+	(vcalt_f32): Likewise.
+	(vcalt_f64): Likewise.
+	(vcaltd_f64): Likewise.
+	(vcaltq_f32): Likewise.
+	(vcaltq_f64): Likewise.
+	(vcalts_f32): Likewise.
+
+2023-05-25  Hu, Lin1  <lin1.hu@intel.com>
+
+	PR target/109173
+	PR target/109174
+	* config/i386/avx512bwintrin.h (_mm512_srli_epi16): Change type from
+	int to const int or const int to const unsigned int.
+	(_mm512_mask_srli_epi16): Ditto.
+	(_mm512_slli_epi16): Ditto.
+	(_mm512_mask_slli_epi16): Ditto.
+	(_mm512_maskz_slli_epi16): Ditto.
+	(_mm512_srai_epi16): Ditto.
+	(_mm512_mask_srai_epi16): Ditto.
+	(_mm512_maskz_srai_epi16): Ditto.
+	* config/i386/avx512fintrin.h (_mm512_slli_epi64): Ditto.
+	(_mm512_mask_slli_epi64): Ditto.
+	(_mm512_maskz_slli_epi64): Ditto.
+	(_mm512_srli_epi64): Ditto.
+	(_mm512_mask_srli_epi64): Ditto.
+	(_mm512_maskz_srli_epi64): Ditto.
+	(_mm512_srai_epi64): Ditto.
+	(_mm512_mask_srai_epi64): Ditto.
+	(_mm512_maskz_srai_epi64): Ditto.
+	(_mm512_slli_epi32): Ditto.
+	(_mm512_mask_slli_epi32): Ditto.
+	(_mm512_maskz_slli_epi32): Ditto.
+	(_mm512_srli_epi32): Ditto.
+	(_mm512_mask_srli_epi32): Ditto.
+	(_mm512_maskz_srli_epi32): Ditto.
+	(_mm512_srai_epi32): Ditto.
+	(_mm512_mask_srai_epi32): Ditto.
+	(_mm512_maskz_srai_epi32): Ditto.
+	* config/i386/avx512vlbwintrin.h (_mm256_mask_srai_epi16): Ditto.
+	(_mm256_maskz_srai_epi16): Ditto.
+	(_mm_mask_srai_epi16): Ditto.
+	(_mm_maskz_srai_epi16): Ditto.
+	(_mm256_mask_slli_epi16): Ditto.
+	(_mm256_maskz_slli_epi16): Ditto.
+	(_mm_mask_slli_epi16): Ditto.
+	(_mm_maskz_slli_epi16): Ditto.
+	(_mm_maskz_srli_epi16): Ditto.
+	* config/i386/avx512vlintrin.h (_mm256_mask_srli_epi32): Ditto.
+	(_mm256_maskz_srli_epi32): Ditto.
+	(_mm_mask_srli_epi32): Ditto.
+	(_mm_maskz_srli_epi32): Ditto.
+	(_mm256_mask_srli_epi64): Ditto.
+	(_mm256_maskz_srli_epi64): Ditto.
+	(_mm_mask_srli_epi64): Ditto.
+	(_mm_maskz_srli_epi64): Ditto.
+	(_mm256_mask_srai_epi32): Ditto.
+	(_mm256_maskz_srai_epi32): Ditto.
+	(_mm_mask_srai_epi32): Ditto.
+	(_mm_maskz_srai_epi32): Ditto.
+	(_mm256_srai_epi64): Ditto.
+	(_mm256_mask_srai_epi64): Ditto.
+	(_mm256_maskz_srai_epi64): Ditto.
+	(_mm_srai_epi64): Ditto.
+	(_mm_mask_srai_epi64): Ditto.
+	(_mm_maskz_srai_epi64): Ditto.
+	(_mm_mask_slli_epi32): Ditto.
+	(_mm_maskz_slli_epi32): Ditto.
+	(_mm_mask_slli_epi64): Ditto.
+	(_mm_maskz_slli_epi64): Ditto.
+	(_mm256_mask_slli_epi32): Ditto.
+	(_mm256_maskz_slli_epi32): Ditto.
+	(_mm256_mask_slli_epi64): Ditto.
+	(_mm256_maskz_slli_epi64): Ditto.
+
+2023-05-25  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/vector.md: Remove FRM_REGNUM dependency in rtz
+	instructions.
+
+2023-05-25  Aldy Hernandez  <aldyh@redhat.com>
+
+	* data-streamer-in.cc (streamer_read_value_range): Handle NANs.
+	* data-streamer-out.cc (streamer_write_vrange): Same.
+	* value-range.h (class vrange): Make streamer_write_vrange a friend.
+
+2023-05-25  Aldy Hernandez  <aldyh@redhat.com>
+
+	* value-query.cc (range_query::get_tree_range): Set NAN directly
+	if necessary.
+	* value-range.cc (frange::set): Assert that bounds are not NAN.
+
+2023-05-25  Aldy Hernandez  <aldyh@redhat.com>
+
+	* value-range.cc (add_vrange): Handle known NANs.
+
+2023-05-25  Aldy Hernandez  <aldyh@redhat.com>
+
+	* value-range.h (frange::set_nan): New.
+
+2023-05-25  Alexandre Oliva  <oliva@adacore.com>
+
+	PR target/100106
+	* emit-rtl.cc (validate_subreg): Reject a SUBREG of a MEM that
+	requires stricter alignment than MEM's.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	PR tree-optimization/107822
+	PR tree-optimization/107986
+	* Makefile.in (OBJS): Add gimple-range-phi.o.
+	* gimple-range-cache.h (ranger_cache::m_estimate): New
+	phi_analyzer pointer member.
+	* gimple-range-fold.cc (fold_using_range::range_of_phi): Use
+	phi_analyzer if no loop info is available.
+	* gimple-range-phi.cc: New file.
+	* gimple-range-phi.h: New file.
+	* tree-vrp.cc (execute_ranger_vrp): Utililze a phi_analyzer.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	* gimple-range-fold.cc (fur_list::fur_list): Add range_query param
+	to contructors.
+	(fold_range): Add range_query parameter.
+	(fur_relation::fur_relation): New.
+	(fur_relation::trio): New.
+	(fur_relation::register_relation): New.
+	(fold_relations): New.
+	* gimple-range-fold.h (fold_range): Adjust prototypes.
+	(fold_relations): New.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	* gimple-range-cache.cc (ssa_cache::range_of_expr): New.
+	* gimple-range-cache.h (class ssa_cache): Inherit from range_query.
+	(ranger_cache::const_query): New.
+	* gimple-range.cc (gimple_ranger::const_query): New.
+	* gimple-range.h (gimple_ranger::const_query): New prototype.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	* gimple-range-cache.cc (ssa_cache::dump): Use get_range.
+	(ssa_cache::dump_range_query): Delete.
+	(ssa_lazy_cache::dump_range_query): Delete.
+	(ssa_lazy_cache::get_range): Move from header file.
+	(ssa_lazy_cache::clear_range): ditto.
+	(ssa_lazy_cache::clear): Ditto.
+	* gimple-range-cache.h (class ssa_cache): Virtualize.
+	(class ssa_lazy_cache): Inherit and virtualize.
+
+2023-05-24  Aldy Hernandez  <aldyh@redhat.com>
+
+	* value-range.h (vrange::kind): Remove.
+
+2023-05-24  Roger Sayle  <roger@nextmovesoftware.com>
+
+	PR middle-end/109840
+	* match.pd <popcount optimizations>: Preserve zero-extension when
+	optimizing popcount((T)bswap(x)) and popcount((T)rotate(x,y)) as
+	popcount((T)x), so the popcount's argument keeps the same type.
+	<parity optimizations>:  Likewise preserve extensions when
+	simplifying parity((T)bswap(x)) and parity((T)rotate(x,y)) as
+	parity((T)x), so that the parity's argument type is the same.
+
+2023-05-24  Aldy Hernandez  <aldyh@redhat.com>
+
+	* ipa-cp.cc (ipa_value_range_from_jfunc): Use new ipa_vr API.
+	(ipcp_store_vr_results): Same.
+	* ipa-prop.cc (ipa_vr::ipa_vr): New.
+	(ipa_vr::get_vrange): New.
+	(ipa_vr::set_unknown): New.
+	(ipa_vr::streamer_read): New.
+	(ipa_vr::streamer_write): New.
+	(write_ipcp_transformation_info): Use new ipa_vr API.
+	(read_ipcp_transformation_info): Same.
+	(ipa_vr::nonzero_p): Delete.
+	(ipcp_update_vr): Use new ipa_vr API.
+	* ipa-prop.h (class ipa_vr): Provide an API and hide internals.
+	* ipa-sra.cc (zap_useless_ipcp_results): Use new ipa_vr API.
+
+2023-05-24  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* config/mcore/mcore.cc (output_inline_const) Make buffer smaller to
+	silence overflow warnings later on.
+
+2023-05-24  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386-expand.cc (ix86_expand_vecop_qihi2):
+	Remove handling of V8QImode.
+	* config/i386/mmx.md (v<insn>v8qi3): Move from sse.md.
+	Call ix86_expand_vecop_qihi_partial.  Enable for TARGET_MMX_WITH_SSE.
+	(v<insn>v4qi3): Ditto.
+	* config/i386/sse.md (v<insn>v8qi3): Remove.
+
+2023-05-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	PR target/99195
+	* config/aarch64/aarch64-simd.md (aarch64_simd_lshr<mode>): Rename to...
+	(aarch64_simd_lshr<mode><vczle><vczbe>): ... This.
+	(aarch64_simd_ashr<mode>): Rename to...
+	(aarch64_simd_ashr<mode><vczle><vczbe>): ... This.
+	(aarch64_simd_imm_shl<mode>): Rename to...
+	(aarch64_simd_imm_shl<mode><vczle><vczbe>): ... This.
+	(aarch64_simd_reg_sshl<mode>): Rename to...
+	(aarch64_simd_reg_sshl<mode><vczle><vczbe>): ... This.
+	(aarch64_simd_reg_shl<mode>_unsigned): Rename to...
+	(aarch64_simd_reg_shl<mode>_unsigned<vczle><vczbe>): ... This.
+	(aarch64_simd_reg_shl<mode>_signed): Rename to...
+	(aarch64_simd_reg_shl<mode>_signed<vczle><vczbe>): ... This.
+	(vec_shr_<mode>): Rename to...
+	(vec_shr_<mode><vczle><vczbe>): ... This.
+	(aarch64_<sur>shl<mode>): Rename to...
+	(aarch64_<sur>shl<mode><vczle><vczbe>): ... This.
+	(aarch64_<sur>q<r>shl<mode>): Rename to...
+	(aarch64_<sur>q<r>shl<mode><vczle><vczbe>): ... This.
+
+2023-05-24  Richard Biener  <rguenther@suse.de>
+
+	PR target/109944
+	* config/i386/i386-expand.cc (ix86_expand_vector_init_general):
+	Perform final vector composition using
+	ix86_expand_vector_init_general instead of setting
+	the highpart and lowpart which causes spilling.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	PR tree-optimization/109695
+	* gimple-range-cache.cc (ranger_cache::get_global_range): Add
+	changed param.
+	* gimple-range-cache.h (ranger_cache::get_global_range): Ditto.
+	* gimple-range.cc (gimple_ranger::range_of_stmt): Pass changed
+	flag to set_global_range.
+	(gimple_ranger::prefill_stmt_dependencies): Ditto.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	PR tree-optimization/109695
+	* gimple-range-cache.cc (temporal_cache::temporal_value): Return
+	a positive int.
+	(temporal_cache::current_p): Check always_current method.
+	(temporal_cache::set_always_current): Add param and set value
+	appropriately.
+	(temporal_cache::always_current_p): New.
+	(ranger_cache::get_global_range): Adjust.
+	(ranger_cache::set_global_range): set always current first.
+
+2023-05-24  Andrew MacLeod  <amacleod@redhat.com>
+
+	PR tree-optimization/109695
+	* gimple-range-cache.cc (ranger_cache::get_global_range): Call
+	fold_range with global query to choose an initial value.
+
+2023-05-24  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/riscv-protos.h (enum frm_field_enum): Add FRM_
+	prefix.
+
+2023-05-24  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/109849
+	* tree-ssa-pre.cc (do_hoist_insertion): Do not intersect
+	expressions but take the first sets.
+
+2023-05-24  Gaius Mulley  <gaiusmod2@gmail.com>
+
+	PR modula2/109952
+	* doc/gm2.texi (High procedure function): New node.
+	(Using): New menu entry for High procedure function.
+
+2023-05-24  Richard Sandiford  <richard.sandiford@arm.com>
+
+	PR rtl-optimization/109940
+	* early-remat.cc (postorder_index): Rename to...
+	(rpo_index): ...this.
+	(compare_candidates): Sort by decreasing rpo_index rather than
+	increasing postorder_index.
+	(early_remat::sort_candidates): Calculate the forward RPO from
+	DF_FORWARD.
+	(early_remat::local_phase): Follow forward RPO using DF_FORWARD,
+	rather than DF_BACKWARD in reverse.
+
+2023-05-24  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	PR target/109939
+	* config/arm/arm-builtins.cc (SAT_BINOP_UNSIGNED_IMM_QUALIFIERS): Use
+	qualifier_none for the return operand.
+
+2023-05-24  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/autovec.md (<optab><mode>3): New pattern.
+	(one_cmpl<mode>2): Ditto.
+	(*<optab>not<mode>): Ditto.
+	(*n<optab><mode>): Ditto.
+	* config/riscv/riscv-v.cc (expand_vec_cmp_float): Change to
+	one_cmpl.
+
+2023-05-24  Kewen Lin  <linkw@linux.ibm.com>
+
+	* tree-vect-slp.cc (vect_transform_slp_perm_load_1): Adjust the
+	calculation on n_perms by considering nvectors_per_build.
+
+2023-05-24  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+	    Richard Sandiford  <richard.sandiford@arm.com>
+
+	* config/riscv/autovec.md (@vcond_mask_<mode><vm>): New pattern.
+	(vec_cmp<mode><vm>): New pattern.
+	(vec_cmpu<mode><vm>): New pattern.
+	(vcond<V:mode><VI:mode>): New pattern.
+	(vcondu<V:mode><VI:mode>): New pattern.
+	* config/riscv/riscv-protos.h (enum insn_type): Add new enum.
+	(emit_vlmax_merge_insn): New function.
+	(emit_vlmax_cmp_insn): Ditto.
+	(emit_vlmax_cmp_mu_insn): Ditto.
+	(expand_vec_cmp): Ditto.
+	(expand_vec_cmp_float): Ditto.
+	(expand_vcond): Ditto.
+	* config/riscv/riscv-v.cc (emit_vlmax_merge_insn): Ditto.
+	(emit_vlmax_cmp_insn): Ditto.
+	(emit_vlmax_cmp_mu_insn): Ditto.
+	(get_cmp_insn_code): Ditto.
+	(expand_vec_cmp): Ditto.
+	(expand_vec_cmp_float): Ditto.
+	(expand_vcond): Ditto.
+
+2023-05-24  Pan Li  <pan2.li@intel.com>
+
+	* config/riscv/genrvv-type-indexer.cc (main): Add
+	unsigned_eew*_lmul1_interpret for indexer.
+	* config/riscv/riscv-vector-builtins-functions.def (vreinterpret):
+	Register vuint*m1_t interpret function.
+	* config/riscv/riscv-vector-builtins-types.def (DEF_RVV_UNSIGNED_EEW8_LMUL1_INTERPRET_OPS):
+	New macro for vuint8m1_t.
+	(DEF_RVV_UNSIGNED_EEW16_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_UNSIGNED_EEW32_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_UNSIGNED_EEW64_LMUL1_INTERPRET_OPS): Likewise.
+	(vbool1_t): Add to unsigned_eew*_interpret_ops.
+	(vbool2_t): Likewise.
+	(vbool4_t): Likewise.
+	(vbool8_t): Likewise.
+	(vbool16_t): Likewise.
+	(vbool32_t): Likewise.
+	(vbool64_t): Likewise.
+	* config/riscv/riscv-vector-builtins.cc (DEF_RVV_UNSIGNED_EEW8_LMUL1_INTERPRET_OPS):
+	New macro for vuint*m1_t.
+	(DEF_RVV_UNSIGNED_EEW16_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_UNSIGNED_EEW32_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_UNSIGNED_EEW64_LMUL1_INTERPRET_OPS): Likewise.
+	(required_extensions_p): Add vuint*m1_t interpret case.
+	* config/riscv/riscv-vector-builtins.def (unsigned_eew8_lmul1_interpret):
+	Add vuint*m1_t interpret to base type.
+	(unsigned_eew16_lmul1_interpret): Likewise.
+	(unsigned_eew32_lmul1_interpret): Likewise.
+	(unsigned_eew64_lmul1_interpret): Likewise.
+
+2023-05-24  Pan Li  <pan2.li@intel.com>
+
+	* config/riscv/genrvv-type-indexer.cc (EEW_SIZE_LIST): New macro
+	for the eew size list.
+	(LMUL1_LOG2): New macro for the log2 value of lmul=1.
+	(main): Add signed_eew*_lmul1_interpret for indexer.
+	* config/riscv/riscv-vector-builtins-functions.def (vreinterpret):
+	Register vint*m1_t interpret function.
+	* config/riscv/riscv-vector-builtins-types.def (DEF_RVV_SIGNED_EEW8_LMUL1_INTERPRET_OPS):
+	New macro for vint8m1_t.
+	(DEF_RVV_SIGNED_EEW16_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_SIGNED_EEW32_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_SIGNED_EEW64_LMUL1_INTERPRET_OPS): Likewise.
+	(vbool1_t): Add to signed_eew*_interpret_ops.
+	(vbool2_t): Likewise.
+	(vbool4_t): Likewise.
+	(vbool8_t): Likewise.
+	(vbool16_t): Likewise.
+	(vbool32_t): Likewise.
+	(vbool64_t): Likewise.
+	* config/riscv/riscv-vector-builtins.cc (DEF_RVV_SIGNED_EEW8_LMUL1_INTERPRET_OPS):
+	New macro for vint*m1_t.
+	(DEF_RVV_SIGNED_EEW16_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_SIGNED_EEW32_LMUL1_INTERPRET_OPS): Likewise.
+	(DEF_RVV_SIGNED_EEW64_LMUL1_INTERPRET_OPS): Likewise.
+	(required_extensions_p): Add vint8m1_t interpret case.
+	* config/riscv/riscv-vector-builtins.def (signed_eew8_lmul1_interpret):
+	Add vint*m1_t interpret to base type.
+	(signed_eew16_lmul1_interpret): Likewise.
+	(signed_eew32_lmul1_interpret): Likewise.
+	(signed_eew64_lmul1_interpret): Likewise.
+
+2023-05-24  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/autovec.md: Adjust for new interface.
+	* config/riscv/riscv-protos.h (emit_vlmax_insn): Add VL operand.
+	(emit_nonvlmax_insn): Add AVL operand.
+	* config/riscv/riscv-v.cc (emit_vlmax_insn): Add VL operand.
+	(emit_nonvlmax_insn): Add AVL operand.
+	(sew64_scalar_helper): Adjust for new interface.
+	(expand_tuple_move): Ditto.
+	* config/riscv/vector.md: Ditto.
+
+2023-05-24  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/riscv-v.cc (expand_vec_series): Remove magic number.
+	(expand_const_vector): Ditto.
+	(legitimize_move): Ditto.
+	(sew64_scalar_helper): Ditto.
+	(expand_tuple_move): Ditto.
+	(expand_vector_init_insert_elems): Ditto.
+	* config/riscv/riscv.cc (vector_zero_call_used_regs): Ditto.
+
+2023-05-24  liuhongt  <hongtao.liu@intel.com>
+
+	PR target/109900
+	* config/i386/i386.cc (ix86_gimple_fold_builtin): Fold
+	_mm{,256,512}_abs_{epi8,epi16,epi32,epi64} and
+	_mm_abs_{pi8,pi16,pi32} into gimple ABS_EXPR.
+	(ix86_masked_all_ones): Handle 64-bit mask.
+	* config/i386/i386-builtin.def: Replace icode of related
+	non-mask simd abs builtins with CODE_FOR_nothing.
+
+2023-05-23  Martin Uecker  <uecker@tugraz.at>
+
+	PR c/109450
+	* function.cc (gimplify_parm_type): Remove function.
+	(gimplify_parameters): Call gimplify_type_sizes.
+
+2023-05-23  Takayuki 'January June' Suwa  <jjsuwa_sys3175@yahoo.co.jp>
+
+	* config/xtensa/xtensa.md (*addsubx): Rename from '*addx',
+	and change to also accept '*subx' pattern.
+	(*subx): Remove.
+
+2023-05-23  Takayuki 'January June' Suwa  <jjsuwa_sys3175@yahoo.co.jp>
+
+	* config/xtensa/predicates.md (addsub_operator): New.
+	* config/xtensa/xtensa.md (*extzvsi-1bit_ashlsi3,
+	*extzvsi-1bit_addsubx): New insn_and_split patterns.
+	* config/xtensa/xtensa.cc (xtensa_rtx_costs):
+	Add a special case about ifcvt 'noce_try_cmove()' to handle
+	constant loads that do not fit into signed 12 bits in the
+	patterns added above.
+
+2023-05-23  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/109747
+	* tree-vect-slp.cc (vect_prologue_cost_for_slp): Pass down
+	the SLP node only once to the cost hook.
+
+2023-05-23  Georg-Johann Lay  <avr@gjlay.de>
+
+	* config/avr/avr.cc (avr_insn_cost): New static function.
+	(TARGET_INSN_COST): Define to that function.
+
+2023-05-23  Richard Biener  <rguenther@suse.de>
+
+	PR target/109944
+	* config/i386/i386.cc (ix86_vector_costs::add_stmt_cost):
+	For vector construction or splats apply GPR->XMM move
+	costing.  QImode memory can be handled directly only
+	with SSE4.1 pinsrb.
+
+2023-05-23  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/108752
+	* tree-vect-stmts.cc (vectorizable_operation): For bit
+	operations with generic word_mode vectors do not cost
+	an extra stmt.  For plus, minus and negate also cost the
+	constant materialization.
+
+2023-05-23  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386-expand.cc (ix86_expand_vecop_qihi_partial):
+	Call ix86_expand_vec_shift_qihi_constant for shifts
+	with constant count operand.
+	* config/i386/i386.cc (ix86_shift_rotate_cost):
+	Handle V4QImode and V8QImode.
+	* config/i386/mmx.md (<insn>v8qi3): New insn pattern.
+	(<insn>v4qi3): Ditto.
+
+2023-05-23  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/vector.md: Add mode.
+
+2023-05-23  Aldy Hernandez  <aldyh@redhat.com>
+
+	PR tree-optimization/109934
+	* value-range.cc (irange::invert): Remove buggy special case.
+
+2023-05-23  Richard Biener  <rguenther@suse.de>
+
+	* tree-ssa-pre.cc (compute_antic_aux): Dump the correct
+	ANTIC_OUT.
+
+2023-05-23  Richard Sandiford  <richard.sandiford@arm.com>
+
+	PR target/109632
+	* config/aarch64/aarch64.cc (aarch64_modes_tieable_p): Allow
+	subregs between any scalars that are 64 bits or smaller.
+	* config/aarch64/iterators.md (SUBDI_BITS): New int iterator.
+	(bits_etype): New int attribute.
+	* config/aarch64/aarch64.md (*insv_reg<mode>_<SUBDI_BITS>)
+	(*aarch64_bfi<GPI:mode><ALLX:mode>_<SUBDI_BITS>): New patterns.
+	(*aarch64_bfidi<ALLX:mode>_subreg_<SUBDI_BITS>): Likewise.
+
+2023-05-23  Richard Sandiford  <richard.sandiford@arm.com>
+
+	* doc/md.texi: Document that <FOO> can be used to refer to the
+	numerical value of an int iterator FOO.  Tweak other parts of
+	the int iterator documentation.
+	* read-rtl.cc (iterator_group::has_self_attr): New field.
+	(map_attr_string): When has_self_attr is true, make <FOO>
+	expand to the current value of iterator FOO.
+	(initialize_iterators): Set has_self_attr for int iterators.
+
+2023-05-23  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/autovec.md: Refactor the framework of RVV auto-vectorization.
+	* config/riscv/riscv-protos.h (RVV_MISC_OP_NUM): Ditto.
+	(RVV_UNOP_NUM): New macro.
+	(RVV_BINOP_NUM): Ditto.
+	(legitimize_move): Refactor the framework of RVV auto-vectorization.
+	(emit_vlmax_op): Ditto.
+	(emit_vlmax_reg_op): Ditto.
+	(emit_len_op): Ditto.
+	(emit_len_binop): Ditto.
+	(emit_vlmax_tany_many): Ditto.
+	(emit_nonvlmax_tany_many): Ditto.
+	(sew64_scalar_helper): Ditto.
+	(expand_tuple_move): Ditto.
+	* config/riscv/riscv-v.cc (emit_pred_op): Ditto.
+	(emit_pred_binop): Ditto.
+	(emit_vlmax_op): Ditto.
+	(emit_vlmax_tany_many): New function.
+	(emit_len_op): Remove.
+	(emit_nonvlmax_tany_many): New function.
+	(emit_vlmax_reg_op): Remove.
+	(emit_len_binop): Ditto.
+	(emit_index_op): Ditto.
+	(expand_vec_series): Refactor the framework of RVV auto-vectorization.
+	(expand_const_vector): Ditto.
+	(legitimize_move): Ditto.
+	(sew64_scalar_helper): Ditto.
+	(expand_tuple_move): Ditto.
+	(expand_vector_init_insert_elems): Ditto.
+	* config/riscv/riscv.cc (vector_zero_call_used_regs): Ditto.
+	* config/riscv/vector.md: Ditto.
+
+2023-05-23  Kyrylo Tkachov  <kyrylo.tkachov@arm.com>
+
+	PR target/109855
+	* config/aarch64/aarch64-simd.md (add_vec_concat_subst_le): Add predicate
+	and constraint for operand 0.
+	(add_vec_concat_subst_be): Likewise.
+
+2023-05-23  Richard Biener  <rguenther@suse.de>
+
+	PR tree-optimization/109849
+	* tree-ssa-pre.cc (do_hoist_insertion): Compute ANTIC_OUT
+	and use that to determine what to hoist.
+
+2023-05-23  Eric Botcazou  <ebotcazou@adacore.com>
+
+	* fold-const.cc (native_encode_initializer) <CONSTRUCTOR>: Apply the
+	specific treatment for bit-fields only if they have an integral type
+	and filter out non-integral bit-fields that do not start and end on
+	a byte boundary.
+
+2023-05-23  Aldy Hernandez  <aldyh@redhat.com>
+
+	PR tree-optimization/109920
+	* value-range.h (RESIZABLE>::~int_range): Use delete[].
+
+2023-05-22  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386.cc (ix86_shift_rotate_cost): Correct
+	calcuation of integer vector mode costs to reflect generated
+	instruction sequences of different integer vector modes and
+	different target ABIs.  Remove "speed" function argument.
+	(ix86_rtx_costs): Update call for removed function argument.
+	(ix86_vector_costs::add_stmt_cost): Ditto.
+
+2023-05-22  Aldy Hernandez  <aldyh@redhat.com>
+
+	* value-range.h (class Value_Range): Implement set_zero,
+	set_nonzero, and nonzero_p.
+
+2023-05-22  Uros Bizjak  <ubizjak@gmail.com>
+
+	* config/i386/i386.cc (ix86_multiplication_cost): Add
+	the cost of a memory read to the cost of V?QImode sequences.
+
+2023-05-22  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/riscv-v.cc: Add "m_" prefix.
+
+2023-05-22  Ju-Zhe Zhong  <juzhe.zhong@rivai.ai>
+
+	* tree-vect-loop.cc (vect_get_loop_len): Fix issue for
+	multiple-rgroup of length.
+	* tree-vect-stmts.cc (vectorizable_store): Ditto.
+	(vectorizable_load): Ditto.
+	* tree-vectorizer.h (vect_get_loop_len): Ditto.
+
+2023-05-22  Juzhe-Zhong  <juzhe.zhong@rivai.ai>
+
+	* config/riscv/riscv.cc (riscv_const_insns): Reorganize the
+	codes.
+
+2023-05-22  Kewen Lin  <linkw@linux.ibm.com>
+
+	* tree-vect-slp.cc (vect_transform_slp_perm_load_1): Refactor the
+	handling for the case index == count.
+
+2023-05-21  Georg-Johann Lay  <avr@gjlay.de>
+
+	PR target/90622
+	* config/avr/avr.cc (avr_fold_builtin) [AVR_BUILTIN_INSERT_BITS]:
+	Don't fold to XOR / AND / XOR if just one bit is copied to the
+	same position.
+
+2023-05-21  Roger Sayle  <roger@nextmovesoftware.com>
+
+	* config/nvptx/nvptx.cc (nvptx_expand_brev): Expand target
+	builtin for bit reversal using brev instruction.
+	(enum nvptx_builtins): Add NVPTX_BUILTIN_BREV and
+	NVPTX_BUILTIN_BREVLL.
+	(nvptx_init_builtins): Define "brev" and "brevll".
+	(nvptx_expand_builtin): Expand NVPTX_BUILTIN_BREV and
+	NVPTX_BUILTIN_BREVLL via nvptx_expand_brev function.
+	* doc/extend.texi (Nvidia PTX Builtin-in Functions): New
+	section, document __builtin_nvptx_brev{,ll}.
+
+2023-05-21  Jakub Jelinek  <jakub@redhat.com>
+
+	PR tree-optimization/109505
+	* match.pd ((x | CST1) & CST2 -> (x & CST2) | (CST1 & CST2),
+	Combine successive equal operations with constants,
+	(A +- CST1) +- CST2 -> A + CST3, (CST1 - A) +- CST2 -> CST3 - A,
+	CST1 - (CST2 - A) -> CST3 + A): Use ! on ops with 2 CONSTANT_CLASS_P
+	operands.
+
+2023-05-21  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (expand_single_bit_test): Correct bitpos for big-endian.
+
+2023-05-21  Pan Li  <pan2.li@intel.com>
+
+	* config/riscv/genrvv-type-indexer.cc (BOOL_SIZE_LIST): Add the
+	rest bool size, aka 2, 4, 8, 16, 32, 64.
+	* config/riscv/riscv-vector-builtins-functions.def (vreinterpret):
+	Register vbool[2|4|8|16|32|64] interpret function.
+	* config/riscv/riscv-vector-builtins-types.def (DEF_RVV_BOOL2_INTERPRET_OPS):
+	New macro for vbool2_t.
+	(DEF_RVV_BOOL4_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL8_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL16_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL32_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL64_INTERPRET_OPS): Likewise.
+	(vint8m1_t): Add the type to bool[2|4|8|16|32|64]_interpret_ops.
+	(vint16m1_t): Likewise.
+	(vint32m1_t): Likewise.
+	(vint64m1_t): Likewise.
+	(vuint8m1_t): Likewise.
+	(vuint16m1_t): Likewise.
+	(vuint32m1_t): Likewise.
+	(vuint64m1_t): Likewise.
+	* config/riscv/riscv-vector-builtins.cc (DEF_RVV_BOOL2_INTERPRET_OPS):
+	New macro for vbool2_t.
+	(DEF_RVV_BOOL4_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL8_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL16_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL32_INTERPRET_OPS): Likewise.
+	(DEF_RVV_BOOL64_INTERPRET_OPS): Likewise.
+	(required_extensions_p): Add vbool[2|4|8|16|32|64] interpret case.
+	* config/riscv/riscv-vector-builtins.def (bool2_interpret): Add
+	vbool2_t interprect to base type.
+	(bool4_interpret): Likewise.
+	(bool8_interpret): Likewise.
+	(bool16_interpret): Likewise.
+	(bool32_interpret): Likewise.
+	(bool64_interpret): Likewise.
+
+2023-05-21  Andrew Pinski  <apinski@marvell.com>
+
+	PR middle-end/109919
+	* expr.cc (expand_single_bit_test): Don't use the
+	target for expand_expr.
+
+2023-05-20  Gerald Pfeifer  <gerald@pfeifer.com>
+
+	* doc/install.texi (Specific): Remove de facto empty alpha*-*-*
+	section.
+
+2023-05-20  Pan Li  <pan2.li@intel.com>
+
+	* mode-switching.cc (entity_map): Initialize the array to zero.
+	(bb_info): Ditto.
+
+2023-05-20  Triffid Hunter  <triffid.hunter@gmail.com>
+
+	PR target/105753
+	* config/avr/avr.md (divmodpsi, udivmodpsi, divmodsi, udivmodsi):
+	Remove superfluous "parallel" in insn pattern.
+	([u]divmod<mode>4): Tidy code.  Use gcc_unreachable() instead of
+	printing error text to assembly.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test): Rename to ...
+	(expand_single_bit_test): This and expand directly.
+	(do_store_flag): Update for the rename function.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test): Use BIT_FIELD_REF
+	instead of shift/and.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test): Add an assert
+	and simplify based on code being NE_EXPR or EQ_EXPR.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test): Take inner and bitnum
+	instead of arg0 and arg1. Update the code.
+	(do_store_flag): Don't create a tree when calling
+	fold_single_bit_test instead just call it with the bitnum
+	and the inner tree.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test): Use get_def_for_expr
+	instead of checking the inner's code.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* expr.cc (fold_single_bit_test_into_sign_test): Inline into ...
+	(fold_single_bit_test): This and simplify.
+
+2023-05-20  Andrew Pinski  <apinski@marvell.com>
+
+	* fold-const.cc (fold_single_bit_test_into_sign_test): Move to
+	expr.cc.
+	(fold_single_bit_test): Likewise.
+	* expr.cc (fold_single_bit_test_into_sign_test): Move from fold-const.cc
+	(fold_single_bit_test): Likewise and make static.
+	* fold-const.h (fold_single_bit_test): Remove declaration.
+
+2023-05-20  Die Li  <lidie@eswincomputing.com>
+
+	* config/riscv/riscv.cc (riscv_expand_conditional_move): Fix mode
+	checking.
+
+2023-05-20  Raphael Moreira Zinsly  <rzinsly@ventanamicro.com>
+
+	* config/riscv/bitmanip.md (branch<X:mode>_bext): New split pattern.
+
+2023-05-20  Raphael Moreira Zinsly  <rzinsly@ventanamicro.com>
+
+	PR target/106888
+	* config/riscv/bitmanip.md
+	(<bitmanip_optab>disi2): Match with any_extend.
+	(<bitmanip_optab>disi2_sext): New pattern to match
+	with sign extend using an ANDI instruction.
+
 2023-05-19  Nathan Sidwell  <nathan@acm.org>
 
 	PR other/99451

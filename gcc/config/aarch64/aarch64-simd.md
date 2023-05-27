@@ -26,7 +26,7 @@
   [(set (match_operand:VDZ 0)
         (match_operand:VDZ 1))]
   "!BYTES_BIG_ENDIAN"
-  [(set (match_operand:<VDBL> 0)
+  [(set (match_operand:<VDBL> 0 "register_operand" "=w")
         (vec_concat:<VDBL>
          (match_dup 1)
          (match_operand:VDZ 2 "aarch64_simd_or_scalar_imm_zero")))])
@@ -35,7 +35,7 @@
   [(set (match_operand:VDZ 0)
         (match_operand:VDZ 1))]
   "BYTES_BIG_ENDIAN"
-  [(set (match_operand:<VDBL> 0)
+  [(set (match_operand:<VDBL> 0 "register_operand" "=w")
         (vec_concat:<VDBL>
          (match_operand:VDZ 2 "aarch64_simd_or_scalar_imm_zero")
          (match_dup 1)))])
@@ -554,7 +554,7 @@
 ;; to describe the permute that is also required, but even if that is done
 ;; the permute would have been created as a LOAD_LANES which means the values
 ;; in the registers are in the wrong order.
-(define_insn "aarch64_fcadd<rot><mode>"
+(define_insn "aarch64_fcadd<rot><mode><vczle><vczbe>"
   [(set (match_operand:VHSDF 0 "register_operand" "=w")
 	(unspec:VHSDF [(match_operand:VHSDF 1 "register_operand" "w")
 		       (match_operand:VHSDF 2 "register_operand" "w")]
@@ -572,25 +572,25 @@
   "TARGET_COMPLEX && !BYTES_BIG_ENDIAN"
 )
 
-(define_insn "aarch64_fcmla<rot><mode>"
+(define_insn "aarch64_fcmla<rot><mode><vczle><vczbe>"
   [(set (match_operand:VHSDF 0 "register_operand" "=w")
-	(plus:VHSDF (match_operand:VHSDF 1 "register_operand" "0")
-		    (unspec:VHSDF [(match_operand:VHSDF 2 "register_operand" "w")
+	(plus:VHSDF (unspec:VHSDF [(match_operand:VHSDF 2 "register_operand" "w")
 				   (match_operand:VHSDF 3 "register_operand" "w")]
-				   FCMLA)))]
+				   FCMLA)
+		    (match_operand:VHSDF 1 "register_operand" "0")))]
   "TARGET_COMPLEX"
   "fcmla\t%0.<Vtype>, %2.<Vtype>, %3.<Vtype>, #<rot>"
   [(set_attr "type" "neon_fcmla")]
 )
 
 
-(define_insn "aarch64_fcmla_lane<rot><mode>"
+(define_insn "aarch64_fcmla_lane<rot><mode><vczle><vczbe>"
   [(set (match_operand:VHSDF 0 "register_operand" "=w")
-	(plus:VHSDF (match_operand:VHSDF 1 "register_operand" "0")
-		    (unspec:VHSDF [(match_operand:VHSDF 2 "register_operand" "w")
+	(plus:VHSDF (unspec:VHSDF [(match_operand:VHSDF 2 "register_operand" "w")
 				   (match_operand:VHSDF 3 "register_operand" "w")
 				   (match_operand:SI 4 "const_int_operand" "n")]
-				   FCMLA)))]
+				   FCMLA)
+		    (match_operand:VHSDF 1 "register_operand" "0")))]
   "TARGET_COMPLEX"
 {
   operands[4] = aarch64_endian_lane_rtx (<VHALF>mode, INTVAL (operands[4]));
@@ -599,13 +599,13 @@
   [(set_attr "type" "neon_fcmla")]
 )
 
-(define_insn "aarch64_fcmla_laneq<rot>v4hf"
+(define_insn "aarch64_fcmla_laneq<rot>v4hf<vczle><vczbe>"
   [(set (match_operand:V4HF 0 "register_operand" "=w")
-	(plus:V4HF (match_operand:V4HF 1 "register_operand" "0")
-		   (unspec:V4HF [(match_operand:V4HF 2 "register_operand" "w")
+	(plus:V4HF (unspec:V4HF [(match_operand:V4HF 2 "register_operand" "w")
 				 (match_operand:V8HF 3 "register_operand" "w")
 				 (match_operand:SI 4 "const_int_operand" "n")]
-				 FCMLA)))]
+				 FCMLA)
+		   (match_operand:V4HF 1 "register_operand" "0")))]
   "TARGET_COMPLEX"
 {
   operands[4] = aarch64_endian_lane_rtx (V4HFmode, INTVAL (operands[4]));
@@ -616,11 +616,11 @@
 
 (define_insn "aarch64_fcmlaq_lane<rot><mode>"
   [(set (match_operand:VQ_HSF 0 "register_operand" "=w")
-	(plus:VQ_HSF (match_operand:VQ_HSF 1 "register_operand" "0")
-		     (unspec:VQ_HSF [(match_operand:VQ_HSF 2 "register_operand" "w")
+	(plus:VQ_HSF (unspec:VQ_HSF [(match_operand:VQ_HSF 2 "register_operand" "w")
 				     (match_operand:<VHALF> 3 "register_operand" "w")
 				     (match_operand:SI 4 "const_int_operand" "n")]
-				     FCMLA)))]
+				     FCMLA)
+		     (match_operand:VQ_HSF 1 "register_operand" "0")))]
   "TARGET_COMPLEX"
 {
   int nunits = GET_MODE_NUNITS (<VHALF>mode).to_constant ();
@@ -1280,7 +1280,7 @@
   DONE;
 })
 
-(define_insn "aarch64_simd_lshr<mode>"
+(define_insn "aarch64_simd_lshr<mode><vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
        (lshiftrt:VDQ_I (match_operand:VDQ_I 1 "register_operand" "w")
 		     (match_operand:VDQ_I  2 "aarch64_simd_rshift_imm" "Dr")))]
@@ -1289,7 +1289,7 @@
   [(set_attr "type" "neon_shift_imm<q>")]
 )
 
-(define_insn "aarch64_simd_ashr<mode>"
+(define_insn "aarch64_simd_ashr<mode><vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w,w")
        (ashiftrt:VDQ_I (match_operand:VDQ_I 1 "register_operand" "w,w")
 		     (match_operand:VDQ_I  2 "aarch64_simd_rshift_imm" "D1,Dr")))]
@@ -1312,7 +1312,7 @@
   [(set_attr "type" "neon_shift_acc<q>")]
 )
 
-(define_insn "aarch64_simd_imm_shl<mode>"
+(define_insn "aarch64_simd_imm_shl<mode><vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
        (ashift:VDQ_I (match_operand:VDQ_I 1 "register_operand" "w")
 		   (match_operand:VDQ_I  2 "aarch64_simd_lshift_imm" "Dl")))]
@@ -1321,7 +1321,7 @@
   [(set_attr "type" "neon_shift_imm<q>")]
 )
 
-(define_insn "aarch64_simd_reg_sshl<mode>"
+(define_insn "aarch64_simd_reg_sshl<mode><vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
        (ashift:VDQ_I (match_operand:VDQ_I 1 "register_operand" "w")
 		   (match_operand:VDQ_I 2 "register_operand" "w")))]
@@ -1330,7 +1330,7 @@
   [(set_attr "type" "neon_shift_reg<q>")]
 )
 
-(define_insn "aarch64_simd_reg_shl<mode>_unsigned"
+(define_insn "aarch64_simd_reg_shl<mode>_unsigned<vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
        (unspec:VDQ_I [(match_operand:VDQ_I 1 "register_operand" "w")
 		    (match_operand:VDQ_I 2 "register_operand" "w")]
@@ -1340,7 +1340,7 @@
   [(set_attr "type" "neon_shift_reg<q>")]
 )
 
-(define_insn "aarch64_simd_reg_shl<mode>_signed"
+(define_insn "aarch64_simd_reg_shl<mode>_signed<vczle><vczbe>"
  [(set (match_operand:VDQ_I 0 "register_operand" "=w")
        (unspec:VDQ_I [(match_operand:VDQ_I 1 "register_operand" "w")
 		    (match_operand:VDQ_I 2 "register_operand" "w")]
@@ -1522,7 +1522,7 @@
 )
 
 ;; For 64-bit modes we use ushl/r, as this does not require a SIMD zero.
-(define_insn "vec_shr_<mode>"
+(define_insn "vec_shr_<mode><vczle><vczbe>"
   [(set (match_operand:VD 0 "register_operand" "=w")
         (unspec:VD [(match_operand:VD 1 "register_operand" "w")
 		    (match_operand:SI 2 "immediate_operand" "i")]
@@ -6340,7 +6340,7 @@
 
 ;; vshl
 
-(define_insn "aarch64_<sur>shl<mode>"
+(define_insn "aarch64_<sur>shl<mode><vczle><vczbe>"
   [(set (match_operand:VSDQ_I_DI 0 "register_operand" "=w")
         (unspec:VSDQ_I_DI
 	  [(match_operand:VSDQ_I_DI 1 "register_operand" "w")
@@ -6354,7 +6354,7 @@
 
 ;; vqshl
 
-(define_insn "aarch64_<sur>q<r>shl<mode>"
+(define_insn "aarch64_<sur>q<r>shl<mode><vczle><vczbe>"
   [(set (match_operand:VSDQ_I 0 "register_operand" "=w")
         (unspec:VSDQ_I
 	  [(match_operand:VSDQ_I 1 "register_operand" "w")

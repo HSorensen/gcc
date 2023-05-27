@@ -1295,13 +1295,13 @@ riscv_const_insns (rtx x)
 		 * accurately according to BASE && STEP.  */
 		return 1;
 	      }
+	    /* Constants from -16 to 15 can be loaded with vmv.v.i.
+	       The Wc0, Wc1 constraints are already covered by the
+	       vi constraint so we do not need to check them here
+	       separately.  */
+	    if (satisfies_constraint_vi (x))
+	      return 1;
 	  }
-	/* Constants from -16 to 15 can be loaded with vmv.v.i.
-	   The Wc0, Wc1 constraints are already covered by the
-	   vi constraint so we do not need to check them here
-	   separately.  */
-	if (TARGET_VECTOR && satisfies_constraint_vi (x))
-	  return 1;
 
 	/* TODO: We may support more const vector in the future.  */
 	return x == CONST0_RTX (GET_MODE (x)) ? 1 : 0;
@@ -7389,9 +7389,6 @@ vector_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
 	{
 	  rtx target = regno_reg_rtx[regno];
 	  machine_mode mode = GET_MODE (target);
-	  poly_uint16 nunits = GET_MODE_NUNITS (mode);
-	  machine_mode mask_mode
-	    = riscv_vector::get_vector_mode (BImode, nunits).require ();
 
 	  if (!emitted_vlmax_vsetvl)
 	    {
@@ -7399,8 +7396,9 @@ vector_zero_call_used_regs (HARD_REG_SET need_zeroed_hardregs)
 	      emitted_vlmax_vsetvl = true;
 	    }
 
-	  riscv_vector::emit_vlmax_reg_op (code_for_pred_mov (mode), target,
-					   CONST0_RTX (mode), vl, mask_mode);
+	  rtx ops[] = {target, CONST0_RTX (mode)};
+	  riscv_vector::emit_vlmax_insn (code_for_pred_mov (mode),
+					 riscv_vector::RVV_UNOP, ops, vl);
 
 	  SET_HARD_REG_BIT (zeroed_hardregs, regno);
 	}
@@ -7606,6 +7604,28 @@ riscv_mode_priority (int, int n)
 {
   return n;
 }
+
+/* Implement TARGET_VECTORIZE_AUTOVECTORIZE_VECTOR_MODES.  */
+unsigned int
+riscv_autovectorize_vector_modes (vector_modes *modes, bool all)
+{
+  if (TARGET_VECTOR)
+    return riscv_vector::autovectorize_vector_modes (modes, all);
+
+  return default_autovectorize_vector_modes (modes, all);
+}
+
+/* Implement TARGET_VECTORIZE_RELATED_MODE.  */
+opt_machine_mode
+riscv_vectorize_related_mode (machine_mode vector_mode, scalar_mode element_mode,
+			      poly_uint64 nunits)
+{
+  if (TARGET_VECTOR)
+    return riscv_vector::vectorize_related_mode (vector_mode, element_mode,
+						 nunits);
+  return default_vectorize_related_mode (vector_mode, element_mode, nunits);
+}
+
 
 /* Initialize the GCC target structure.  */
 #undef TARGET_ASM_ALIGNED_HI_OP
@@ -7897,6 +7917,13 @@ riscv_mode_priority (int, int n)
 #define TARGET_MODE_EXIT riscv_mode_exit
 #undef TARGET_MODE_PRIORITY
 #define TARGET_MODE_PRIORITY riscv_mode_priority
+
+#undef TARGET_VECTORIZE_AUTOVECTORIZE_VECTOR_MODES
+#define TARGET_VECTORIZE_AUTOVECTORIZE_VECTOR_MODES \
+  riscv_autovectorize_vector_modes
+
+#undef TARGET_VECTORIZE_RELATED_MODE
+#define TARGET_VECTORIZE_RELATED_MODE riscv_vectorize_related_mode
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 

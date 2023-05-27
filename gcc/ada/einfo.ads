@@ -864,29 +864,12 @@ package Einfo is
 --       and IN OUT parameters in the absence of errors).
 
 --    Delay_Cleanups
---       Defined in entities that have finalization lists (subprograms
---       blocks, and tasks). Set if there are pending generic body
---       instantiations for the corresponding entity. If this flag is
---       set, then generation of cleanup actions for the corresponding
---       entity must be delayed, since the insertion of the generic body
---       may affect cleanup generation (see Inline for further details).
-
---    Delay_Subprogram_Descriptors
---       Defined in entities for which exception subprogram descriptors
---       are generated (subprograms, package declarations and package
---       bodies). Defined if there are pending generic body instantiations
---       for the corresponding entity. If this flag is set, then generation
---       of the subprogram descriptor for the corresponding entities must
---       be delayed, since the insertion of the generic body may add entries
---       to the list of handlers.
---
---       Note: for subprograms, Delay_Subprogram_Descriptors is set if and
---       only if Delay_Cleanups is set. But Delay_Cleanups can be set for a
---       a block (in which case Delay_Subprogram_Descriptors is set for the
---       containing subprogram). In addition Delay_Subprogram_Descriptors is
---       set for a library level package declaration or body which contains
---       delayed instantiations (in this case the descriptor refers to the
---       enclosing elaboration procedure).
+--       Defined in entities that have finalization lists (subprograms, blocks
+--       and tasks) or finalizers (package specs and bodies). Set if there are
+--       pending package body instantiations for the corresponding entity. If
+--       it is set, then generation of cleanup actions for the corresponding
+--       entity must be delayed, since the insertion of the package bodies may
+--       affect cleanup generation (see Inline for further details).
 
 --    Delta_Value
 --       Defined in fixed and decimal types. Points to a universal real
@@ -1148,6 +1131,8 @@ package Einfo is
 --       object for task entry calls and a Communications_Block object
 --       in the case of protected entry calls. In both cases the objects
 --       are declared in outer scopes to this block.
+--       This is also defined in labels, because we temporarily set the
+--       Ekind of an E_Block to E_Label in Analyze_Implicit_Label_Declaration.
 
 --    Entry_Component
 --       Defined in formal parameters (in, in out and out parameters). Used
@@ -3104,6 +3089,18 @@ package Einfo is
 --       procedure which verifies the invariants of the partial view of a
 --       private type or private extension.
 
+--    Is_Not_Self_Hidden
+--       Defined in all entities. Roughly speaking, this is False if the
+--       declaration of the entity is hidden from all visibility because
+--       we are within its declaration, as defined by 8.3(16-18). When
+--       we reach the end of the declaration or other place defined by
+--       8.3(16-18), this is set to True. However, this flag is not used
+--       for most overloaded declarations (but is used for enumeration
+--       literals), and is also used for other cases of premature usage
+--       such as defined in 3.8(10) for record components and the like.
+--       In addition, there are cases involving discriminants where we
+--       set this True, then temporarily False again.
+
 --    Is_Potentially_Use_Visible
 --       Defined in all entities. Set if entity is potentially use visible,
 --       i.e. it is defined in a package that appears in a currently active
@@ -4329,14 +4326,14 @@ package Einfo is
 --       concurrent types, private types and entries, and also to record types,
 --       i.e. to any entity that can appear on the scope stack. Yields the
 --       scope depth value, which for those entities other than records is
---       simply the scope depth value, for record entities, it is the
---       Scope_Depth of the record scope.
+--       simply the Scope_Depth_Value, and for record entities, is the
+--       Scope_Depth of the record's scope.
 
 --    Scope_Depth_Value
 --       Defined in program units, blocks, loops, return statements,
 --       concurrent types, private types and entries.
 --       Indicates the number of scopes that statically enclose the declaration
---       of the unit or type. Library units have a depth of zero. Note that
+--       of the unit or type. Library units have a depth of one. Note that
 --       record types can act as scopes but do NOT have this field set (see
 --       Scope_Depth above). Queries should normally be via Scope_Depth,
 --       and not call Scope_Depth_Value directly.
@@ -4765,7 +4762,7 @@ package Einfo is
 
 --    Wrapped_Statements
 --       Defined in functions, procedures, entries, and entry families. Refers
---       to the entity of the _Wrapped_Statements procedure which gets
+--       to the entity of the _Wrapped_Statements procedure, which gets
 --       generated as part of the expansion of contracts and postconditions
 --       and contains its enclosing subprogram's original source declarations
 --       and statements.
@@ -4774,7 +4771,8 @@ package Einfo is
 --       Defined in subprogram entities. Set on wrappers created to handle
 --       inherited class-wide pre/post conditions that call overridden
 --       primitives. It references the parent primitive that has the
---       class-wide pre/post conditions.
+--       class-wide pre/post conditions. LSP stands for Liskov Substitution
+--       Principle.
 
 ---------------------------
 -- Renaming and Aliasing --
@@ -4945,6 +4943,7 @@ package Einfo is
    --    Is_Obsolescent
    --    Is_Package_Body_Entity
    --    Is_Packed_Array_Impl_Type
+   --    Is_Not_Self_Hidden
    --    Is_Potentially_Use_Visible
    --    Is_Preelaborated
    --    Is_Primitive_Wrapper
@@ -5538,7 +5537,6 @@ package Einfo is
    --    Contains_Ignored_Ghost_Code
    --    Default_Expressions_Processed
    --    Delay_Cleanups
-   --    Delay_Subprogram_Descriptors
    --    Discard_Names
    --    Elaboration_Entity_Required
    --    Has_Completion
@@ -5664,6 +5662,7 @@ package Einfo is
    --  E_Label
    --    Renamed_Object $$$
    --    Renamed_Entity $$$
+   --    Entry_Cancel_Parameter
    --    Enclosing_Scope
    --    Reachable
 
@@ -5787,7 +5786,6 @@ package Einfo is
    --    Body_Needed_For_Inlining
    --    Body_Needed_For_SAL
    --    Contains_Ignored_Ghost_Code
-   --    Delay_Subprogram_Descriptors
    --    Discard_Names
    --    Elaborate_Body_Desirable             (non-generic case only)
    --    Elaboration_Entity_Required
@@ -5830,7 +5828,6 @@ package Einfo is
    --    SPARK_Pragma
    --    SPARK_Aux_Pragma
    --    Contains_Ignored_Ghost_Code
-   --    Delay_Subprogram_Descriptors
    --    Ignore_SPARK_Mode_Pragmas
    --    SPARK_Aux_Pragma_Inherited
    --    SPARK_Pragma_Inherited
@@ -5904,7 +5901,6 @@ package Einfo is
    --    Elaboration_Entity_Required
    --    Default_Expressions_Processed
    --    Delay_Cleanups
-   --    Delay_Subprogram_Descriptors
    --    Discard_Names
    --    Has_Completion
    --    Has_Expanded_Contract                (non-generic case only)

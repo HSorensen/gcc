@@ -1018,6 +1018,7 @@ package body Einfo.Utils is
 
       Is_CTC : constant Boolean :=
                   Id = Pragma_Contract_Cases            or else
+                  Id = Pragma_Exceptional_Cases         or else
                   Id = Pragma_Subprogram_Variant        or else
                   Id = Pragma_Test_Case;
 
@@ -1975,7 +1976,7 @@ package body Einfo.Utils is
          end if;
 
          exit when Ekind (D) = E_Discriminant
-           and then (Is_Completely_Hidden (D) = Is_Completely_Hidden (Id));
+           and then Is_Completely_Hidden (D) = Is_Completely_Hidden (Id);
       end loop;
 
       return D;
@@ -3170,7 +3171,7 @@ package body Einfo.Utils is
                Index := First_Index (Id);
                while Present (Index) loop
                   Write_Attribute (" ", Etype (Index));
-                  Index := Next_Index (Index);
+                  Next_Index (Index);
                end loop;
 
                Write_Eol;
