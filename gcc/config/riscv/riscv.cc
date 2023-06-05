@@ -1295,12 +1295,23 @@ riscv_const_insns (rtx x)
 		 * accurately according to BASE && STEP.  */
 		return 1;
 	      }
-	    /* Constants from -16 to 15 can be loaded with vmv.v.i.
-	       The Wc0, Wc1 constraints are already covered by the
-	       vi constraint so we do not need to check them here
-	       separately.  */
-	    if (satisfies_constraint_vi (x))
-	      return 1;
+
+	    rtx elt;
+	    if (const_vec_duplicate_p (x, &elt))
+	      {
+		/* Constants from -16 to 15 can be loaded with vmv.v.i.
+		   The Wc0, Wc1 constraints are already covered by the
+		   vi constraint so we do not need to check them here
+		   separately.  */
+		if (satisfies_constraint_vi (x))
+		  return 1;
+
+		/* A const duplicate vector can always be broadcast from
+		   a general-purpose register.  This means we need as many
+		   insns as it takes to load the constant into the GPR
+		   and one vmv.v.x.  */
+		return 1 + riscv_integer_cost (INTVAL (elt));
+	      }
 	  }
 
 	/* TODO: We may support more const vector in the future.  */
@@ -3442,37 +3453,6 @@ riscv_expand_conditional_branch (rtx label, rtx_code code, rtx op0, rtx op1)
   emit_jump_insn (gen_condjump (condition, label));
 }
 
-/* Helper to emit two one-sided conditional moves for the movecc.  */
-
-static void
-riscv_expand_conditional_move_onesided (rtx dest, rtx cons, rtx alt,
-					rtx_code code, rtx op0, rtx op1)
-{
-  machine_mode mode = GET_MODE (dest);
-
-  gcc_assert (GET_MODE_CLASS (mode) == MODE_INT);
-  gcc_assert (reg_or_0_operand (cons, mode));
-  gcc_assert (reg_or_0_operand (alt, mode));
-
-  riscv_emit_int_compare (&code, &op0, &op1, true);
-  rtx cond = gen_rtx_fmt_ee (code, mode, op0, op1);
-
-  rtx tmp1 = gen_reg_rtx (mode);
-  rtx tmp2 = gen_reg_rtx (mode);
-
-  emit_insn (gen_rtx_SET (tmp1, gen_rtx_IF_THEN_ELSE (mode, cond,
-						      cons, const0_rtx)));
-
-  /* We need to expand a sequence for both blocks and we do that such,
-     that the second conditional move will use the inverted condition.
-     We use temporaries that are or'd to the dest register.  */
-  cond = gen_rtx_fmt_ee ((code == EQ) ? NE : EQ, mode, op0, op1);
-  emit_insn (gen_rtx_SET (tmp2, gen_rtx_IF_THEN_ELSE (mode, cond,
-						      alt, const0_rtx)));
-
-  emit_insn (gen_rtx_SET (dest, gen_rtx_IOR (mode, tmp1, tmp2)));
- }
-
 /* Emit a cond move: If OP holds, move CONS to DEST; else move ALT to DEST.
    Return 0 if expansion failed.  */
 
@@ -3483,6 +3463,7 @@ riscv_expand_conditional_move (rtx dest, rtx op, rtx cons, rtx alt)
   rtx_code code = GET_CODE (op);
   rtx op0 = XEXP (op, 0);
   rtx op1 = XEXP (op, 1);
+  bool need_eq_ne_p = false;
 
   if (TARGET_XTHEADCONDMOV
       && GET_MODE_CLASS (mode) == MODE_INT
@@ -3492,14 +3473,12 @@ riscv_expand_conditional_move (rtx dest, rtx op, rtx cons, rtx alt)
       && GET_MODE (op0) == mode
       && GET_MODE (op1) == mode
       && (code == EQ || code == NE))
+    need_eq_ne_p = true;
+
+  if (need_eq_ne_p
+      || (TARGET_SFB_ALU && GET_MODE (op0) == word_mode))
     {
-      riscv_expand_conditional_move_onesided (dest, cons, alt, code, op0, op1);
-      return true;
-    }
-  else if (TARGET_SFB_ALU
-	   && GET_MODE (op0) == word_mode)
-    {
-      riscv_emit_int_compare (&code, &op0, &op1);
+      riscv_emit_int_compare (&code, &op0, &op1, need_eq_ne_p);
       rtx cond = gen_rtx_fmt_ee (code, GET_MODE (op0), op0, op1);
 
       /* The expander allows (const_int 0) for CONS for the benefit of
@@ -5673,7 +5652,7 @@ riscv_expand_epilogue (int style)
 					   adjust));
 	  rtx dwarf = NULL_RTX;
 	  rtx cfa_adjust_rtx = gen_rtx_PLUS (Pmode, stack_pointer_rtx,
-					     GEN_INT (step2));
+					     GEN_INT (step2 + libcall_size));
 
 	  dwarf = alloc_reg_note (REG_CFA_DEF_CFA, cfa_adjust_rtx, dwarf);
 	  RTX_FRAME_RELATED_P (insn) = 1;
@@ -5710,7 +5689,7 @@ riscv_expand_epilogue (int style)
 
       rtx dwarf = NULL_RTX;
       rtx cfa_adjust_rtx = gen_rtx_PLUS (Pmode, stack_pointer_rtx,
-					 const0_rtx);
+					 GEN_INT (libcall_size));
       dwarf = alloc_reg_note (REG_CFA_DEF_CFA, cfa_adjust_rtx, dwarf);
       RTX_FRAME_RELATED_P (insn) = 1;
 
@@ -7043,10 +7022,9 @@ riscv_asan_shadow_offset (void)
 {
   /* We only have libsanitizer support for RV64 at present.
 
-     This number must match kRiscv*_ShadowOffset* in the file
-     libsanitizer/asan/asan_mapping.h which is currently 1<<29 for rv64,
-     even though 1<<36 makes more sense.  */
-  return TARGET_64BIT ? (HOST_WIDE_INT_1 << 29) : 0;
+     This number must match ASAN_SHADOW_OFFSET_CONST in the file
+     libsanitizer/asan/asan_mapping.h.  */
+  return TARGET_64BIT ? HOST_WIDE_INT_UC (0xd55550000) : 0;
 }
 
 /* Implement TARGET_MANGLE_TYPE.  */
@@ -7549,6 +7527,31 @@ riscv_mode_needed (int entity, rtx_insn *insn)
     }
 }
 
+/* Return true if the VXRM/FRM status of the INSN is unknown.  */
+static bool
+global_state_unknown_p (rtx_insn *insn, unsigned int regno)
+{
+  struct df_insn_info *insn_info = DF_INSN_INFO_GET (insn);
+  df_ref ref;
+
+  /* Return true if there is a definition of VXRM.  */
+  for (ref = DF_INSN_INFO_DEFS (insn_info); ref; ref = DF_REF_NEXT_LOC (ref))
+    if (DF_REF_REGNO (ref) == regno)
+      return true;
+
+  /* A CALL function may contain an instruction that modifies the VXRM,
+     return true in this situation.  */
+  if (CALL_P (insn))
+    return true;
+
+  /* Return true for all assembly since users may hardcode a assembly
+     like this: asm volatile ("csrwi vxrm, 0").  */
+  extract_insn (insn);
+  if (recog_data.is_asm)
+    return true;
+  return false;
+}
+
 /* Return the mode that an insn results in.  */
 
 static int
@@ -7557,7 +7560,9 @@ riscv_mode_after (int entity, int mode, rtx_insn *insn)
   switch (entity)
     {
     case RISCV_VXRM:
-      if (recog_memoized (insn) >= 0)
+      if (global_state_unknown_p (insn, VXRM_REGNUM))
+	return VXRM_MODE_NONE;
+      else if (recog_memoized (insn) >= 0)
 	return reg_mentioned_p (gen_rtx_REG (SImode, VXRM_REGNUM),
 				PATTERN (insn))
 		 ? get_attr_vxrm_mode (insn)

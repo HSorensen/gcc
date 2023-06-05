@@ -1319,6 +1319,7 @@ is_specialization_of_friend (tree decl, tree friend_decl)
      of a template class, we want to check if DECL is a specialization
      if this.  */
   if (TREE_CODE (friend_decl) == FUNCTION_DECL
+      && DECL_CLASS_SCOPE_P (friend_decl)
       && DECL_TEMPLATE_INFO (friend_decl)
       && !DECL_USE_TEMPLATE (friend_decl))
     {
@@ -1879,19 +1880,8 @@ iterative_hash_template_arg (tree arg, hashval_t val)
 	  return hash_tmpl_and_args (TI_TEMPLATE (ti), TI_ARGS (ti));
 	}
 
-      switch (TREE_CODE (arg))
+      switch (code)
 	{
-	case TEMPLATE_TEMPLATE_PARM:
-	  {
-	    tree tpi = TEMPLATE_TYPE_PARM_INDEX (arg);
-
-	    /* Do not recurse with TPI directly, as that is unbounded
-	       recursion.  */
-	    val = iterative_hash_object (TEMPLATE_PARM_LEVEL (tpi), val);
-	    val = iterative_hash_object (TEMPLATE_PARM_IDX (tpi), val);
-	  }
-	  break;
-
 	case  DECLTYPE_TYPE:
 	  val = iterative_hash_template_arg (DECLTYPE_TYPE_EXPR (arg), val);
 	  break;
@@ -10949,25 +10939,6 @@ uses_template_parms (tree t)
     return dependent_type_p (TREE_TYPE (t));
   else
     return instantiation_dependent_expression_p (t);
-}
-
-/* Returns true iff we're processing an incompletely instantiated function
-   template.  Useful instead of processing_template_decl because the latter
-   is set to 0 during instantiate_non_dependent_expr.  */
-
-bool
-in_template_function (void)
-{
-  /* Inspect the less volatile cfun->decl instead of current_function_decl;
-     the latter might get set for e.g. access checking during satisfaction.  */
-  tree fn = cfun ? cfun->decl : NULL_TREE;
-  bool ret;
-  ++processing_template_decl;
-  ret = (fn && DECL_LANG_SPECIFIC (fn)
-	 && DECL_TEMPLATE_INFO (fn)
-	 && any_dependent_template_arguments_p (DECL_TI_ARGS (fn)));
-  --processing_template_decl;
-  return ret;
 }
 
 /* Returns true if T depends on any template parameter with level LEVEL.  */

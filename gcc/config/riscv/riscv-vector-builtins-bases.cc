@@ -164,7 +164,7 @@ public:
   {
     if (STORE_P || LST_TYPE == LST_INDEXED)
       return true;
-    return pred != PRED_TYPE_none && pred != PRED_TYPE_mu;
+    return pred != PRED_TYPE_none;
   }
 
   rtx expand (function_expander &e) const override
@@ -361,8 +361,12 @@ public:
 	return e.use_exact_insn (
 	  code_for_pred_dual_widen_scalar (CODE1, CODE2, e.vector_mode ()));
       case OP_TYPE_wv:
-	return e.use_exact_insn (
-	  code_for_pred_single_widen (CODE1, CODE2, e.vector_mode ()));
+	if (CODE1 == PLUS)
+	  return e.use_exact_insn (
+	    code_for_pred_single_widen_add (CODE2, e.vector_mode ()));
+	else
+	  return e.use_exact_insn (
+	    code_for_pred_single_widen_sub (CODE2, e.vector_mode ()));
       case OP_TYPE_wx:
 	return e.use_exact_insn (
 	  code_for_pred_single_widen_scalar (CODE1, CODE2, e.vector_mode ()));
@@ -963,7 +967,7 @@ public:
   bool can_be_overloaded_p (enum predication_type_index pred) const override
   {
     return pred == PRED_TYPE_tu || pred == PRED_TYPE_tum
-	   || pred == PRED_TYPE_tumu;
+	   || pred == PRED_TYPE_tumu || pred == PRED_TYPE_mu;
   }
 
   rtx expand (function_expander &e) const override
@@ -979,7 +983,7 @@ public:
   bool can_be_overloaded_p (enum predication_type_index pred) const override
   {
     return pred == PRED_TYPE_tu || pred == PRED_TYPE_tum
-	   || pred == PRED_TYPE_tumu;
+	   || pred == PRED_TYPE_tumu || pred == PRED_TYPE_mu;
   }
 
   rtx expand (function_expander &e) const override
@@ -1561,30 +1565,10 @@ public:
 
   rtx expand (function_expander &e) const override
   {
-    e.add_input_operand (0);
-    switch (e.op_info->ret.base_type)
-      {
-      case RVV_BASE_vlmul_ext_x2:
-	return e.generate_insn (
-	  code_for_vlmul_extx2 (e.vector_mode ()));
-      case RVV_BASE_vlmul_ext_x4:
-	return e.generate_insn (
-	  code_for_vlmul_extx4 (e.vector_mode ()));
-      case RVV_BASE_vlmul_ext_x8:
-	return e.generate_insn (
-	  code_for_vlmul_extx8 (e.vector_mode ()));
-      case RVV_BASE_vlmul_ext_x16:
-	return e.generate_insn (
-	  code_for_vlmul_extx16 (e.vector_mode ()));
-      case RVV_BASE_vlmul_ext_x32:
-	return e.generate_insn (
-	  code_for_vlmul_extx32 (e.vector_mode ()));
-      case RVV_BASE_vlmul_ext_x64:
-	return e.generate_insn (
-	  code_for_vlmul_extx64 (e.vector_mode ()));
-      default:
-	gcc_unreachable ();
-      }
+    tree arg = CALL_EXPR_ARG (e.exp, 0);
+    rtx src = expand_normal (arg);
+    emit_insn (gen_rtx_SET (gen_lowpart (e.vector_mode (), e.target), src));
+    return e.target;
   }
 };
 
@@ -1711,6 +1695,11 @@ public:
     return CP_READ_MEMORY | CP_WRITE_CSR;
   }
 
+  bool can_be_overloaded_p (enum predication_type_index pred) const override
+  {
+    return pred != PRED_TYPE_none;
+  }
+
   gimple *fold (gimple_folder &f) const override
   {
     return fold_fault_load (f);
@@ -1749,7 +1738,7 @@ public:
 
   bool can_be_overloaded_p (enum predication_type_index pred) const override
   {
-    return pred != PRED_TYPE_none && pred != PRED_TYPE_mu;
+    return pred != PRED_TYPE_none;
   }
 
   rtx expand (function_expander &e) const override
@@ -1794,7 +1783,7 @@ public:
 
   bool can_be_overloaded_p (enum predication_type_index pred) const override
   {
-    return pred != PRED_TYPE_none && pred != PRED_TYPE_mu;
+    return pred != PRED_TYPE_none;
   }
 
   rtx expand (function_expander &e) const override
@@ -1884,7 +1873,7 @@ public:
 
   bool can_be_overloaded_p (enum predication_type_index pred) const override
   {
-    return pred != PRED_TYPE_none && pred != PRED_TYPE_mu;
+    return pred != PRED_TYPE_none;
   }
 
   gimple *fold (gimple_folder &f) const override

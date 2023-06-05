@@ -583,10 +583,6 @@ package body Exp_Ch3 is
       Ptr       : Entity_Id;
 
    begin
-      if not Expander_Active then
-         return;
-      end if;
-
       --  Create List of actuals for indirect call. The last parameter of the
       --  subprogram declaration is the access value for the indirect call.
 
@@ -6896,6 +6892,12 @@ package body Exp_Ch3 is
                  --  violate the predicate.
 
                  and then not Has_Predicates (Component_Type (Typ))
+
+                 --  Array default component value takes precedence over
+                 --  Init_Or_Norm_Scalars.
+
+                 and then No (Find_Aspect (Typ,
+                                           Aspect_Default_Component_Value))
 
                  --  The component type must have a single initialization value
 

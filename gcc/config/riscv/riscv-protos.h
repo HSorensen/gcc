@@ -137,10 +137,13 @@ enum insn_type
   RVV_MISC_OP = 1,
   RVV_UNOP = 2,
   RVV_BINOP = 3,
+  RVV_BINOP_MU = RVV_BINOP + 2,
   RVV_MERGE_OP = 4,
   RVV_CMP_OP = 4,
   RVV_CMP_MU_OP = RVV_CMP_OP + 2, /* +2 means mask and maskoff operand.  */
   RVV_UNOP_MU = RVV_UNOP + 2,	  /* Likewise.  */
+  RVV_TERNOP = 5,
+  RVV_SCALAR_MOV_OP = 4, /* +1 for VUNDEF according to vector.md.  */
 };
 enum vlmul_type
 {
@@ -177,6 +180,7 @@ bool legitimize_move (rtx, rtx);
 void emit_vlmax_vsetvl (machine_mode, rtx);
 void emit_hard_vlmax_vsetvl (machine_mode, rtx);
 void emit_vlmax_insn (unsigned, int, rtx *, rtx = 0);
+void emit_vlmax_ternary_insn (unsigned, int, rtx *, rtx = 0);
 void emit_nonvlmax_insn (unsigned, int, rtx *, rtx);
 void emit_vlmax_merge_insn (unsigned, int, rtx *);
 void emit_vlmax_cmp_insn (unsigned, rtx *);
@@ -237,6 +241,7 @@ opt_machine_mode get_mask_mode (machine_mode);
 void expand_vec_series (rtx, rtx, rtx);
 void expand_vec_init (rtx, rtx);
 void expand_vcond (rtx *);
+void expand_vec_perm (rtx, rtx, rtx, rtx);
 /* Rounding mode bitfield for fixed point VXRM.  */
 enum vxrm_field_enum
 {

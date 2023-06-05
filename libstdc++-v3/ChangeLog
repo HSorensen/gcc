@@ -1,3 +1,225 @@
+2023-06-04  Jason Merrill  <jason@redhat.com>
+
+	PR c++/97720
+	* libsupc++/eh_call.cc (__cxa_call_terminate): Take void*.
+	* config/abi/pre/gnu.ver: Add it.
+
+2023-06-02  François Dumont  <fdumont@gcc.gnu.org>
+
+	* include/parallel/algobase.h: Include <parallel/search.h>.
+
+2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
+
+	* testsuite/26_numerics/pstl/numeric_ops/transform_reduce.cc:
+	Add const to equality operator.
+
+2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
+
+	* include/std/expected (expected::and_then, expected::or_else)
+	(expected::transform_error): Use _M_val and _M_unex instead of
+	calling value() and error(), as per LWG 3938.
+	(expected::transform): Likewise. Remove incorrect std::move
+	calls from lvalue overloads.
+	(expected<void, E>::and_then, expected<void, E>::or_else)
+	(expected<void, E>::transform): Use _M_unex instead of calling
+	error().
+	* testsuite/20_util/expected/lwg3877.cc: Add checks for and_then
+	and transform, and for std::expected<void, E>.
+	* testsuite/20_util/expected/lwg3938.cc: New test.
+
+2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/110060
+	* include/bits/stl_vector.h (_Vector_base::_M_invariant):
+	Remove.
+	(vector::size, vector::capacity): Remove calls to _M_invariant.
+	* include/bits/vector.tcc (vector::_M_fill_assign): Add
+	optimization hint to reallocating path.
+	(vector::_M_assign_aux(FwdIter, FwdIter, forward_iterator_tag)):
+	Likewise.
+	* testsuite/23_containers/vector/capacity/invariant.cc: Moved
+	to...
+	* testsuite/23_containers/vector/modifiers/assign/no_realloc.cc:
+	...here. Check assign(FwdIter, FwdIter) too.
+	* testsuite/23_containers/vector/types/1.cc: Revert addition
+	of -Wno-stringop-overread option.
+
+2023-06-01  Jonathan Wakely  <jwakely@redhat.com>
+
+	* doc/xml/manual/evolution.xml: Document removal of implicit
+	allocator rebinding extensions in strict mode and for C++20.
+	* doc/html/*: Regenerate.
+
+2023-06-01  Jason Merrill  <jason@redhat.com>
+
+	* libsupc++/eh_personality.cc (PERSONALITY_FUNCTION): Don't check
+	handlers in the cleanup phase.
+
+2023-06-01  Matthias Kretz  <m.kretz@gsi.de>
+
+	PR libstdc++/110050
+	* include/experimental/bits/simd.h (__vectorized_sizeof): With
+	__have_neon_a32 only single-precision float works (in addition
+	to integers).
+
+2023-06-01  François Dumont  <fdumont@gcc.gnu.org>
+
+	* include/bits/stl_algo.h
+	(std::__search, std::search(_FwdIt1, _FwdIt1, _FwdIt2, _FwdIt2, _BinPred)): Move...
+	* include/bits/stl_algobase.h: ...here.
+	* include/std/functional: Replace <stl_algo.h> include by <stl_algobase.h>.
+	* include/parallel/algo.h (std::__parallel::search<_FIt1, _FIt2, _BinaryPred>)
+	(std::__parallel::__search_switch<_FIt1, _FIt2, _BinaryPred, _ItTag1, _ItTag2>):
+	Move...
+	* include/parallel/algobase.h: ...here.
+	* include/experimental/functional: Remove <bits/stl_algo.h> and <parallel/algorithm>
+	includes. Include <bits/stl_algobase.h>.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/109818
+	* acinclude.m4 (GLIBCXX_ENABLE_C99): Add separate check for
+	float_t and double_t and define HAVE_C99_FLT_EVAL_TYPES.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+	* include/c_global/cmath (float_t, double_t): Guard using new
+	_GLIBCXX_HAVE_C99_FLT_EVAL_TYPES macro.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* acinclude.m4 (GLIBCXX_ENABLE_C99): Add checks for C99 math
+	functions and define _GLIBCXX_USE_C99_MATH_FUNCS. Move checks
+	for C99 rounding functions to here.
+	(GLIBCXX_CHECK_C99_TR1): Remove checks for C99 rounding
+	functions from here.
+	* config.h.in: Regenerate.
+	* configure: Regenerate.
+	* include/bits/random.h: Use _GLIBCXX_USE_C99_MATH_FUNCS instead
+	of _GLIBCXX_USE_C99_MATH_TR1.
+	* include/bits/random.tcc: Likewise.
+	* include/c_compatibility/math.h: Likewise.
+	* include/c_global/cmath: Likewise.
+	* include/ext/random: Likewise.
+	* include/ext/random.tcc: Likewise.
+	* include/std/complex: Likewise.
+	* testsuite/20_util/from_chars/4.cc: Likewise.
+	* testsuite/20_util/from_chars/8.cc: Likewise.
+	* testsuite/26_numerics/complex/proj.cc: Likewise.
+	* testsuite/26_numerics/headers/cmath/60401.cc: Likewise.
+	* testsuite/26_numerics/headers/cmath/types_std_c++0x.cc:
+	Likewise.
+	* testsuite/lib/libstdc++.exp (check_v3_target_cstdint):
+	Likewise.
+	* testsuite/util/testsuite_random.h: Likewise.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* include/bits/stl_vector.h (_Vector_base::_M_invariant()): New
+	function.
+	(vector::size(), vector::capacity()): Call _M_invariant().
+	* testsuite/23_containers/vector/capacity/invariant.cc: New test.
+	* testsuite/23_containers/vector/types/1.cc: Add suppression for
+	false positive warning (PR110060).
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/109921
+	* src/c++17/floating_from_chars.cc: Check __FLT128_MANT_DIG__ is
+	defined before trying to use _Float128.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* acinclude.m4 (GLIBCXX_ZONEINFO_DIR): Fix for 32-bit pointers
+	to check __INT_PTR_WIDTH__ instead of sizeof(void*).
+	* configure: Regenerate.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* include/bits/unique_lock.h: Include <bits/error_constants.h>
+	here for std::errc constants.
+	* include/std/mutex: Do not include <bits/error_constants.h> and
+	<exception> here.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* configure.ac: Replace use of -o operator for test.
+	* configure: Regenerate.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* include/std/scoped_allocator (scoped_allocator_adaptor): Add
+	noexcept to all constructors except the default constructor.
+	(scoped_allocator_adaptor::inner_allocator): Add noexcept.
+	(scoped_allocator_adaptor::outer_allocator): Likewise.
+	* testsuite/20_util/scoped_allocator/noexcept.cc: New test.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/104772
+	* include/std/limits (numeric_limits<__float128>): Define.
+	* testsuite/18_support/numeric_limits/128bit.cc: New test.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	* acinclude.m4 (GLIBCXX_ZONEINFO_DIR): Extend logic for avr and
+	msp430 to all 16-bit targets.
+	* configure: Regenerate.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/109921
+	* src/c++17/floating_from_chars.cc (USE_STRTOF128_FOR_FROM_CHARS):
+	Only define when USE_STRTOD_FOR_FROM_CHARS is also defined.
+	(USE_STRTOD_FOR_FROM_CHARS): Do not undefine when long double is
+	binary64.
+	(from_chars(const char*, const char*, double&, chars_format)):
+	Check __LDBL_MANT_DIG__ == __DBL_MANT_DIG__ here.
+	(from_chars(const char*, const char*, _Float128&, chars_format))
+	Only use from_chars_strtod when USE_STRTOD_FOR_FROM_CHARS is
+	defined, otherwise parse a long double and convert to _Float128.
+
+2023-05-31  Jonathan Wakely  <jwakely@redhat.com>
+
+	PR libstdc++/109922
+	* include/std/iomanip (operator>>(basic_istream&, _Setfill)):
+	Add deprecated attribute to non-standard overload.
+	* doc/xml/manual/evolution.xml: Document deprecation.
+	* doc/html/*: Regenerate.
+	* testsuite/27_io/manipulators/standard/char/1.cc: Add
+	dg-warning for expected deprecated warning.
+	* testsuite/27_io/manipulators/standard/char/2.cc: Likewise.
+	* testsuite/27_io/manipulators/standard/wchar_t/1.cc: Likewise.
+	* testsuite/27_io/manipulators/standard/wchar_t/2.cc: Likewise.
+
+2023-05-30  Alexandre Oliva  <oliva@adacore.com>
+
+	* testsuite/20_util/from_chars/4.cc: Skip long double test06
+	on x86_64-vxworks.
+	* testsuite/20_util/to_chars/long_double.cc: Xfail run on
+	x86_64-vxworks.
+
+2023-05-30  Matthias Kretz  <m.kretz@gsi.de>
+
+	PR libstdc++/109822
+	* include/experimental/bits/simd.h (to_native): Use int NTTP
+	as specified in PTS2.
+	(to_compatible): Likewise. Add missing tag to call mask
+	generator ctor.
+	* testsuite/experimental/simd/pr109822_cast_functions.cc: New
+	test.
+
+2023-05-30  Matthias Kretz  <m.kretz@gsi.de>
+
+	* testsuite/experimental/simd/tests/integer_operators.cc:
+	Compute expected value differently to avoid getting turned into
+	a vector shift.
+
+2023-05-30  Matthias Kretz  <m.kretz@gsi.de>
+
+	* testsuite/experimental/simd/tests/operator_cvt.cc: Make long
+	double <-> (u)long conversion tests conditional on sizeof(long
+	double) and sizeof(long).
+
 2023-05-26  Matthias Kretz  <m.kretz@gsi.de>
 
 	* include/experimental/bits/simd_ppc.h (_S_bit_shift_left):

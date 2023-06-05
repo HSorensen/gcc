@@ -2370,8 +2370,8 @@ ix86_expand_branch (enum rtx_code code, rtx op0, rtx op1, rtx label)
       tmp = gen_reg_rtx (mode);
       emit_insn (gen_rtx_SET (tmp, gen_rtx_XOR (mode, op0, op1)));
       tmp = gen_lowpart (p_mode, tmp);
-      emit_insn (gen_rtx_SET (gen_rtx_REG (CCmode, FLAGS_REG),
-			      gen_rtx_UNSPEC (CCmode,
+      emit_insn (gen_rtx_SET (gen_rtx_REG (CCZmode, FLAGS_REG),
+			      gen_rtx_UNSPEC (CCZmode,
 					      gen_rtvec (2, tmp, tmp),
 					      UNSPEC_PTEST)));
       tmp = gen_rtx_fmt_ee (code, VOIDmode, flag, const0_rtx);
@@ -23361,7 +23361,7 @@ ix86_expand_vecop_qihi2 (enum rtx_code code, rtx dest, rtx op1, rtx op2)
     {
     case E_V16QImode:
       himode = V16HImode;
-      if (TARGET_AVX512VL)
+      if (TARGET_AVX512VL && TARGET_AVX512BW)
 	gen_truncate = gen_truncv16hiv16qi2;
       break;
     case E_V32QImode:
@@ -23391,18 +23391,18 @@ ix86_expand_vecop_qihi2 (enum rtx_code code, rtx dest, rtx op1, rtx op2)
   else
     hop2 = qop2;
 
-    if (code != MULT && op2vec)
-      {
-	/* Expand vashr/vlshr/vashl.  */
-	hdest = gen_reg_rtx (himode);
-	emit_insn (gen_rtx_SET (hdest,
-				simplify_gen_binary (code, himode,
-						     hop1, hop2)));
-      }
-    else
-      /* Expand mult/ashr/lshr/ashl.  */
-      hdest = expand_simple_binop (himode, code, hop1, hop2,
-				   NULL_RTX, 1, OPTAB_DIRECT);
+  if (code != MULT && op2vec)
+    {
+      /* Expand vashr/vlshr/vashl.  */
+      hdest = gen_reg_rtx (himode);
+      emit_insn (gen_rtx_SET (hdest,
+			      simplify_gen_binary (code, himode,
+						   hop1, hop2)));
+    }
+  else
+    /* Expand mult/ashr/lshr/ashl.  */
+    hdest = expand_simple_binop (himode, code, hop1, hop2,
+				 NULL_RTX, 1, OPTAB_DIRECT);
 
   if (gen_truncate)
     emit_insn (gen_truncate (dest, hdest));

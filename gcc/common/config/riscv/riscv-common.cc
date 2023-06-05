@@ -104,6 +104,9 @@ static const riscv_implied_info_t riscv_implied_info[] =
 
   {"zfh", "zfhmin"},
   {"zfhmin", "f"},
+  {"zvfhmin", "zve32f"},
+  {"zvfh", "zve32f"},
+  {"zvfh", "zfhmin"},
 
   {"zhinx", "zhinxmin"},
   {"zhinxmin", "zfinx"},
@@ -216,6 +219,8 @@ static const struct riscv_ext_version riscv_ext_version_table[] =
 
   {"zfh",       ISA_SPEC_CLASS_NONE, 1, 0},
   {"zfhmin",    ISA_SPEC_CLASS_NONE, 1, 0},
+  {"zvfhmin",   ISA_SPEC_CLASS_NONE, 1, 0},
+  {"zvfh",      ISA_SPEC_CLASS_NONE, 1, 0},
 
   {"zmmul", ISA_SPEC_CLASS_NONE, 1, 0},
 
@@ -1243,6 +1248,8 @@ static const riscv_ext_flag_table_t riscv_ext_flag_table[] =
   {"zve64x",   &gcc_options::x_riscv_vector_elen_flags, MASK_VECTOR_ELEN_64},
   {"zve64f",   &gcc_options::x_riscv_vector_elen_flags, MASK_VECTOR_ELEN_FP_32},
   {"zve64d",   &gcc_options::x_riscv_vector_elen_flags, MASK_VECTOR_ELEN_FP_64},
+  {"zvfhmin",  &gcc_options::x_riscv_vector_elen_flags, MASK_VECTOR_ELEN_FP_16},
+  {"zvfh",     &gcc_options::x_riscv_vector_elen_flags, MASK_VECTOR_ELEN_FP_16},
 
   {"zvl32b",    &gcc_options::x_riscv_zvl_flags, MASK_ZVL32B},
   {"zvl64b",    &gcc_options::x_riscv_zvl_flags, MASK_ZVL64B},
@@ -1259,6 +1266,8 @@ static const riscv_ext_flag_table_t riscv_ext_flag_table[] =
 
   {"zfhmin",    &gcc_options::x_riscv_zf_subext, MASK_ZFHMIN},
   {"zfh",       &gcc_options::x_riscv_zf_subext, MASK_ZFH},
+  {"zvfhmin",   &gcc_options::x_riscv_zf_subext, MASK_ZVFHMIN},
+  {"zvfh",      &gcc_options::x_riscv_zf_subext, MASK_ZVFH},
 
   {"zmmul", &gcc_options::x_riscv_zm_subext, MASK_ZMMUL},
 

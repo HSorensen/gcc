@@ -84,6 +84,25 @@
 )
 
 ;; -------------------------------------------------------------------------
+;; ---- [INT,FP] permutation
+;; -------------------------------------------------------------------------
+;; This is the pattern permutes the vector
+;; -------------------------------------------------------------------------
+
+(define_expand "vec_perm<mode>"
+  [(match_operand:V 0 "register_operand")
+   (match_operand:V 1 "register_operand")
+   (match_operand:V 2 "register_operand")
+   (match_operand:<VINDEX> 3 "vector_perm_operand")]
+  "TARGET_VECTOR && GET_MODE_NUNITS (<MODE>mode).is_constant ()"
+  {
+    riscv_vector::expand_vec_perm (operands[0], operands[1],
+				   operands[2], operands[3]);
+    DONE;
+  }
+)
+
+;; -------------------------------------------------------------------------
 ;; ---- [INT,FP] Initialize from individual elements
 ;; -------------------------------------------------------------------------
 ;; This is the pattern initialize the vector
@@ -210,58 +229,6 @@
   [(set_attr "type" "vmalu")
    (set_attr "mode" "<MODE>")])
 
-;; -------------------------------------------------------------------------
-;; ---- [BOOL] Binary logical operations (inverted second input)
-;; -------------------------------------------------------------------------
-;; Includes:
-;; - vmandnot.mm
-;; - vmornot.mm
-;; -------------------------------------------------------------------------
-
-(define_insn_and_split "*<optab>not<mode>"
-  [(set (match_operand:VB 0 "register_operand"           "=vr")
-	(bitmanip_bitwise:VB
-	  (not:VB (match_operand:VB 2 "register_operand" " vr"))
-	  (match_operand:VB 1 "register_operand"         " vr")))]
-  "TARGET_VECTOR"
-  "#"
-  "&& can_create_pseudo_p ()"
-  [(const_int 0)]
-  {
-    insn_code icode = code_for_pred_not (<CODE>, <MODE>mode);
-    riscv_vector::emit_vlmax_insn (icode, riscv_vector::RVV_BINOP, operands);
-    DONE;
-  }
-  [(set_attr "type" "vmalu")
-   (set_attr "mode" "<MODE>")])
-
-;; -------------------------------------------------------------------------
-;; ---- [BOOL] Binary logical operations (inverted result)
-;; -------------------------------------------------------------------------
-;; Includes:
-;; - vmnand.mm
-;; - vmnor.mm
-;; - vmxnor.mm
-;; -------------------------------------------------------------------------
-
-(define_insn_and_split "*n<optab><mode>"
-  [(set (match_operand:VB 0 "register_operand"     "=vr")
-	(not:VB
-	  (any_bitwise:VB
-	    (match_operand:VB 1 "register_operand" " vr")
-	    (match_operand:VB 2 "register_operand" " vr"))))]
-  "TARGET_VECTOR"
-  "#"
-  "&& can_create_pseudo_p ()"
-  [(const_int 0)]
-  {
-    insn_code icode = code_for_pred_n (<CODE>, <MODE>mode);
-    riscv_vector::emit_vlmax_insn (icode, riscv_vector::RVV_BINOP, operands);
-    DONE;
-  }
-  [(set_attr "type" "vmalu")
-   (set_attr "mode" "<MODE>")])
-
 ;; =========================================================================
 ;; == Comparisons and selects
 ;; =========================================================================
@@ -382,16 +349,24 @@
 ;; - vsext.vf[2|4|8]
 ;; -------------------------------------------------------------------------
 
-(define_expand "<optab><v_double_trunc><mode>2"
-  [(set (match_operand:VWEXTI 0 "register_operand")
+;; Use define_insn_and_split to define vsext.vf2/vzext.vf2 will help
+;; to combine instructions as below:
+;;   vsext.vf2 + vsext.vf2 + vadd.vv ==> vwadd.vv
+(define_insn_and_split "<optab><v_double_trunc><mode>2"
+  [(set (match_operand:VWEXTI 0 "register_operand" "=&vr")
     (any_extend:VWEXTI
-     (match_operand:<V_DOUBLE_TRUNC> 1 "register_operand")))]
+     (match_operand:<V_DOUBLE_TRUNC> 1 "register_operand" "vr")))]
   "TARGET_VECTOR"
+  "#"
+  "&& can_create_pseudo_p ()"
+  [(const_int 0)]
 {
   insn_code icode = code_for_pred_vf2 (<CODE>, <MODE>mode);
   riscv_vector::emit_vlmax_insn (icode, riscv_vector::RVV_UNOP, operands);
   DONE;
-})
+}
+  [(set_attr "type" "vext")
+   (set_attr "mode" "<MODE>")])
 
 (define_expand "<optab><v_quad_trunc><mode>2"
   [(set (match_operand:VQEXTI 0 "register_operand")
@@ -479,6 +454,29 @@
 })
 
 ;; =========================================================================
+;; == Conversions
+;; =========================================================================
+
+;; -------------------------------------------------------------------------
+;; ---- [INT<-FP] Conversions
+;; -------------------------------------------------------------------------
+;; Includes:
+;; - vfcvt.rtz.xu.f.v
+;; - vfcvt.rtz.x.f.v
+;; -------------------------------------------------------------------------
+
+(define_expand "<optab><mode><vconvert>2"
+  [(set (match_operand:<VCONVERT> 0 "register_operand")
+	(any_fix:<VCONVERT>
+	  (match_operand:VF 1 "register_operand")))]
+  "TARGET_VECTOR"
+{
+  insn_code icode = code_for_pred (<CODE>, <MODE>mode);
+  riscv_vector::emit_vlmax_insn (icode, riscv_vector::RVV_UNOP, operands);
+  DONE;
+})
+
+;; =========================================================================
 ;; == Unary arithmetic
 ;; =========================================================================
 
@@ -518,3 +516,113 @@
 					   riscv_vector::RVV_UNOP_MU, ops);
   DONE;
 })
+
+;; =========================================================================
+;; == Ternary arithmetic
+;; =========================================================================
+
+;; -------------------------------------------------------------------------
+;; ---- [INT] VMACC and VMADD
+;; -------------------------------------------------------------------------
+;; Includes:
+;; - vmacc
+;; - vmadd
+;; -------------------------------------------------------------------------
+
+;; We can't expand FMA for the following reasons:
+;; 1. Before RA, we don't know which multiply-add instruction is the ideal one.
+;;    The vmacc is the ideal instruction when operands[3] overlaps operands[0].
+;;    The vmadd is the ideal instruction when operands[1|2] overlaps operands[0].
+;; 2. According to vector.md, the multiply-add patterns has 'merge' operand which
+;;    is the operands[5]. Since operands[5] should overlap operands[0], this operand
+;;    should be allocated the same regno as operands[1|2|3].
+;; 3. The 'merge' operand is always a real merge operand and we don't allow undefined
+;;    operand.
+;; 4. The operation of FMA pattern needs VLMAX vsetlvi which needs a VL operand.
+;;
+;; In this situation, we design the codegen of FMA as follows:
+;; 1. clobber a scratch in the expand pattern of FMA.
+;; 2. Let's RA decide which input operand (operands[1|2|3]) overlap operands[0].
+;; 3. Generate instructions (vmacc or vmadd) according to the register allocation
+;;    result after reload_completed.
+(define_expand "fma<mode>4"
+  [(parallel
+    [(set (match_operand:VI 0 "register_operand"     "=vr")
+	  (plus:VI
+	    (mult:VI
+	      (match_operand:VI 1 "register_operand" " vr")
+	      (match_operand:VI 2 "register_operand" " vr"))
+	    (match_operand:VI 3 "register_operand"   " vr")))
+     (clobber (match_scratch:SI 4))])]
+  "TARGET_VECTOR"
+  {})
+
+(define_insn_and_split "*fma<mode>"
+  [(set (match_operand:VI 0 "register_operand"     "=vr, vr, ?&vr")
+	(plus:VI
+	  (mult:VI
+	    (match_operand:VI 1 "register_operand" " %0, vr,   vr")
+	    (match_operand:VI 2 "register_operand" " vr, vr,   vr"))
+	  (match_operand:VI 3 "register_operand"   " vr,  0,   vr")))
+   (clobber (match_scratch:SI 4 "=r,r,r"))]
+  "TARGET_VECTOR"
+  "#"
+  "&& reload_completed"
+  [(const_int 0)]
+  {
+    PUT_MODE (operands[4], Pmode);
+    riscv_vector::emit_vlmax_vsetvl (<MODE>mode, operands[4]);
+    if (which_alternative == 2)
+      emit_insn (gen_rtx_SET (operands[0], operands[3]));
+    rtx ops[] = {operands[0], operands[1], operands[2], operands[3], operands[0]};
+    riscv_vector::emit_vlmax_ternary_insn (code_for_pred_mul_plus (<MODE>mode),
+					  riscv_vector::RVV_TERNOP, ops, operands[4]);
+    DONE;
+  }
+  [(set_attr "type" "vimuladd")
+   (set_attr "mode" "<MODE>")])
+
+;; -------------------------------------------------------------------------
+;; ---- [INT] VNMSAC and VNMSUB
+;; -------------------------------------------------------------------------
+;; Includes:
+;; - vnmsac
+;; - vnmsub
+;; -------------------------------------------------------------------------
+
+(define_expand "fnma<mode>4"
+  [(parallel
+    [(set (match_operand:VI 0 "register_operand"     "=vr")
+   (minus:VI
+     (match_operand:VI 3 "register_operand"   " vr")
+     (mult:VI
+       (match_operand:VI 1 "register_operand" " vr")
+       (match_operand:VI 2 "register_operand" " vr"))))
+     (clobber (match_scratch:SI 4))])]
+  "TARGET_VECTOR"
+  {})
+
+(define_insn_and_split "*fnma<mode>"
+  [(set (match_operand:VI 0 "register_operand"     "=vr, vr, ?&vr")
+ (minus:VI
+   (match_operand:VI 3 "register_operand"   " vr,  0,   vr")
+   (mult:VI
+     (match_operand:VI 1 "register_operand" " %0, vr,   vr")
+     (match_operand:VI 2 "register_operand" " vr, vr,   vr"))))
+   (clobber (match_scratch:SI 4 "=r,r,r"))]
+  "TARGET_VECTOR"
+  "#"
+  "&& reload_completed"
+  [(const_int 0)]
+  {
+    PUT_MODE (operands[4], Pmode);
+    riscv_vector::emit_vlmax_vsetvl (<MODE>mode, operands[4]);
+    if (which_alternative == 2)
+      emit_insn (gen_rtx_SET (operands[0], operands[3]));
+    rtx ops[] = {operands[0], operands[1], operands[2], operands[3], operands[0]};
+    riscv_vector::emit_vlmax_ternary_insn (code_for_pred_minus_mul (<MODE>mode),
+    riscv_vector::RVV_TERNOP, ops, operands[4]);
+    DONE;
+  }
+  [(set_attr "type" "vimuladd")
+   (set_attr "mode" "<MODE>")])

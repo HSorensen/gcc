@@ -2944,6 +2944,8 @@ check_required_extensions (const function_instance &instance)
 
   uint64_t riscv_isa_flags = 0;
 
+  if (TARGET_VECTOR_ELEN_FP_16)
+    riscv_isa_flags |= RVV_REQUIRE_ELEN_FP_16;
   if (TARGET_VECTOR_ELEN_FP_32)
     riscv_isa_flags |= RVV_REQUIRE_ELEN_FP_32;
   if (TARGET_VECTOR_ELEN_FP_64)
@@ -4024,11 +4026,24 @@ register_vxrm ()
 {
   auto_vec<string_int_pair, 4> values;
 #define DEF_RVV_VXRM_ENUM(NAME, VALUE)                                          \
-  values.quick_push (string_int_pair ("VXRM_" #NAME, VALUE));
+  values.quick_push (string_int_pair ("__RISCV_VXRM_" #NAME, VALUE));
 #include "riscv-vector-builtins.def"
 #undef DEF_RVV_VXRM_ENUM
 
-  lang_hooks.types.simulate_enum_decl (input_location, "RVV_VXRM", &values);
+  lang_hooks.types.simulate_enum_decl (input_location, "__RISCV_VXRM", &values);
+}
+
+/* Register the frm enum.  */
+static void
+register_frm ()
+{
+  auto_vec<string_int_pair, 5> values;
+#define DEF_RVV_FRM_ENUM(NAME, VALUE)                                          \
+  values.quick_push (string_int_pair ("__RISCV_FRM_" #NAME, VALUE));
+#include "riscv-vector-builtins.def"
+#undef DEF_RVV_FRM_ENUM
+
+  lang_hooks.types.simulate_enum_decl (input_location, "__RISCV_FRM", &values);
 }
 
 /* Implement #pragma riscv intrinsic vector.  */
@@ -4048,6 +4063,7 @@ handle_pragma_vector ()
 
   /* Define the enums.  */
   register_vxrm ();
+  register_frm ();
 
   /* Define the functions.  */
   function_table = new hash_table<registered_function_hasher> (1023);

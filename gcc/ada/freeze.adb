@@ -4110,9 +4110,10 @@ package body Freeze is
          procedure Check_Large_Modular_Array (Typ : Entity_Id);
          --  Check that the size of array type Typ can be computed without
          --  overflow, and generates a Storage_Error otherwise. This is only
-         --  relevant for array types whose index has System_Max_Integer_Size
-         --  bits, where wrap-around arithmetic might yield a meaningless value
-         --  for the length of the array, or its corresponding attribute.
+         --  relevant for array types whose index is a modular type with
+         --  Standard_Long_Long_Integer_Size bits: wrap-around arithmetic
+         --  might yield a meaningless value for the length of the array,
+         --  or its corresponding attribute.
 
          procedure Check_Pragma_Thread_Local_Storage (Var_Id : Entity_Id);
          --  Ensure that the initialization state of variable Var_Id subject
@@ -4170,8 +4171,24 @@ package body Freeze is
             --  Storage_Error.
 
             if Is_Modular_Integer_Type (Idx_Typ)
-              and then RM_Size (Idx_Typ) = RM_Size (Standard_Long_Long_Integer)
+              and then RM_Size (Idx_Typ) = Standard_Long_Long_Integer_Size
             then
+               --  Ensure that the type of the object is elaborated before
+               --  the check itself is emitted to avoid elaboration issues
+               --  in the code generator at the library level.
+
+               if Is_Itype (Etype (E))
+                 and then In_Open_Scopes (Scope (Etype (E)))
+               then
+                  declare
+                     Ref_Node : constant Node_Id :=
+                                  Make_Itype_Reference (Obj_Loc);
+                  begin
+                     Set_Itype (Ref_Node, Etype (E));
+                     Insert_Action (Declaration_Node (E), Ref_Node);
+                  end;
+               end if;
+
                Insert_Action (Declaration_Node (E),
                  Make_Raise_Storage_Error (Obj_Loc,
                    Condition =>
@@ -6063,12 +6080,6 @@ package body Freeze is
          then
             --  Here we do the wrap
 
-            --  Note on calls to Copy_Separate_Tree. The trees we are copying
-            --  here are fully analyzed, but we definitely want fully syntactic
-            --  unanalyzed trees in the body we construct, so that the analysis
-            --  generates the right visibility, and that is exactly what the
-            --  calls to Copy_Separate_Tree give us.
-
             Prag := Copy_Import_Pragma;
 
             --  Fix up spec so it is no longer imported and has convention Ada
@@ -6127,7 +6138,7 @@ package body Freeze is
                 Specification              => Copy_Subprogram_Spec (Spec),
                 Declarations               => New_List (
                   Make_Subprogram_Declaration (Loc,
-                    Specification => Copy_Separate_Tree (Spec)),
+                    Specification => Copy_Subprogram_Spec (Spec)),
                   Prag),
                 Handled_Statement_Sequence =>
                   Make_Handled_Sequence_Of_Statements (Loc,

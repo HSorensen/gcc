@@ -1,3 +1,69 @@
+2023-06-04  Jason Merrill  <jason@redhat.com>
+
+	PR c++/97720
+	* cp-tree.h (enum cp_tree_index): Add CPTI_CALL_TERMINATE_FN.
+	(call_terminate_fn): New macro.
+	* cp-gimplify.cc (gimplify_must_not_throw_expr): Use it.
+	* except.cc (init_exception_processing): Set it.
+	(cp_protect_cleanup_actions): Return it.
+
+2023-06-03  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/109923
+	* pt.cc (is_specialization_of_friend): Fix overbroad check for
+	a non-template member function of a class template.
+
+2023-06-03  Patrick Palka  <ppalka@redhat.com>
+
+	* pt.cc (iterative_hash_template_arg): Don't hash
+	TEMPLATE_TEMPLATE_PARM specially.
+
+2023-06-03  Patrick Palka  <ppalka@redhat.com>
+
+	* class.cc (build_base_path): Check in_template_context instead
+	of in_template_function.
+	(resolves_to_fixed_type_p): Likewise.
+	* cp-tree.h (in_template_context): Define.
+	(in_template_function): Remove.
+	* decl.cc (cp_make_fname_decl): Check current_function_decl
+	and in_template_context instead of in_template_function.
+	* decl2.cc (mark_used): Check in_template_context instead of
+	in_template_function.
+	* pt.cc (in_template_function): Remove.
+	* semantics.cc (enforce_access): Check in_template_context
+	instead of current_template_parms directly.
+
+2023-06-03  Patrick Palka  <ppalka@redhat.com>
+
+	PR c++/70790
+	* mangle.cc (write_expression): Handle NOEXCEPT_EXPR.
+
+2023-06-02  Jason Merrill  <jason@redhat.com>
+
+	DR 2735
+	PR c++/109247
+	* call.cc (sfk_copy_or_move): New.
+	(joust): Add tiebreaker for explicit conv and copy ctor.
+
+2023-06-02  Jason Merrill  <jason@redhat.com>
+
+	PR c++/110070
+	PR c++/105838
+	* call.cc (maybe_init_list_as_array): Set DECL_MERGEABLE.
+	(convert_like_internal) [ck_list]: Set it.
+	(set_up_extended_ref_temp): Copy it.
+	* tree.cc (handle_no_unique_addr_attribute): Set it.
+
+2023-06-01  Jason Merrill  <jason@redhat.com>
+
+	* typeck2.cc (check_narrowing): Check flag_permissive.
+
+2023-05-30  Tobias Burnus  <tobias@codesourcery.com>
+
+	PR c/109999
+	* parser.cc (cp_parser_oacc_all_clauses,
+	cp_parser_omp_all_clauses): Improve error wording.
+
 2023-05-19  Andrew Pinski  <apinski@marvell.com>
 
 	PR driver/33980
